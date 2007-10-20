@@ -1,0 +1,56 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+
+build: debian/build-stamp
+
+debian/build-stamp:
+	dh_testdir
+	#docbook-to-man debian/debabaretools.sgml > debabaretools.1
+	touch $@
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f debian/build-stamp
+	dh_clean
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+	#INSTALL#
+
+
+# Build architecture-independent files here.
+binary-indep: build install
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs
+	dh_installdocs
+	dh_installexamples
+	dh_install
+	dh_installmenu
+	dh_installdebconf	
+	dh_installlogrotate
+	dh_installinit
+	dh_installcron
+	dh_installinfo
+	dh_installman
+	dh_link
+	dh_strip
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary-arch: 
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install

@@ -1,0 +1,113 @@
+#!/bin/sh
+
+## TODO: all the other TODOs + find a way to build when source was not uploaded 'cause it's already in rep!!!!
+##       ignore packages in failedToBuild.$DISTRO (should be manually removed from that file)
+
+if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
+    set -x
+fi
+
+set -e
+
+if [ -f "/etc/default/DeBaBaReTools" ]; then
+        . /etc/default/DeBaBaReTools
+fi
+
+if [ -f "$HOME/.DeBaBaReToolsrc" ]; then
+        . "$HOME/.DeBaBaReToolsrc"
+fi
+
+if [ -f "/etc/default/needsBuild" ]; then
+	. /etc/default/needsBuild
+fi
+
+if [ -f "$HOME/.needsBuildrc" ]; then
+        . "$HOME/.needsBuildrc"
+fi
+
+APP_NAME="needsBuild"
+APP_VERSION="0.2"
+
+. $BACKEND_DIR/probe.sh
+# we first load the settings
+probeFile "config"
+
+cd "$BASE_DIR"
+
+# afterwards we load the rest
+probeFile "lock" "startup" "codenamesTable" "buildQueue"
+
+lockApplication
+
+needsBuild_dataDir=build/data
+
+if [ -z "$VERBOSE" ]; then
+    VERBOSE=
+else 
+    if [ "$VERBOSE" ]; then
+        VERBOSE="yes"
+    else
+        VERBOSE=
+    fi
+fi
+
+if [ -z "$INCOMING" ]; then
+    INCOMING="incoming"
+fi
+
+if [ -z "$ACCEPTED" ]; then
+    ACCEPTED="incoming/accepted"
+fi
+
+if [ -z "$REPOSITORY" ]; then
+    REPOSITORY="debian"
+fi
+
+t=`cat conf/distributions  | grep Architectures | sort -r -u | awk '-F: ' '{ print $2 }'`
+
+for a in $t; do
+    if [ "$a" != "source" ]; then
+        BUILDARCHS+="$a "
+    fi
+done
+
+if [ $VERBOSE ]; then
+	sayHello
+	echo "Architectures: ${BUILDARCHS}all"
+fi
+
+for CHANGES in $ACCEPTED/*.changes; do
+	if [ ! -f $CHANGES ]; then
+		continue
+	fi
+
+	checkUnlock
+	
+	if [ $VERBOSE ]; then
+		echo "Now processing $CHANGES"
+	fi
+
+        CHANGES=`basename $CHANGES`
+
+	S_PACKAGE="`echo "$CHANGES" | awk -F_ '{ print $1 }'`_`echo "$CHANGES" | awk -F_ '{ print $2 }'`"
+
+	PACKAGE_V="`echo "$CHANGES" | awk -F_ '{ print $2 }'`"
+
+        CHANGES_ARCH="`echo "$CHANGES" | awk -F_ '{ print $3 }' | awk -F. '{ print $1 }'`"
+
+        TO_BUILD_IN="`cat ${ACCEPTED}/${S_PACKAGE}.dsc | grep Architecture: | awk '-F: ' '{ print $2 }'`"
+
+        DISTRO="`cat ${ACCEPTED}/$CHANGES | grep Distribution: | awk '-F: ' '{ print $2 }'`"
+
+        if [ "${TO_BUILD_IN}" = "any" ]; then
+            TO_BUILD_IN=${BUILDARCHS}
+        fi
+
+        if [ ! -z "${TO_BUILD_IN}" ]; then
+            toBuild "$DISTRO" "$S_PACKAGE" "$PACKAGE_V" "$TO_BUILD_IN"
+        fi
+done
+
+unlockApplication
+exit 0
+

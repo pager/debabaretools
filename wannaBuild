@@ -1,0 +1,200 @@
+#!/bin/sh
+
+if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
+    set -x
+fi
+
+if [ -z "$VERBOSE" ]; then
+    VERBOSE=
+else 
+    if [ "$VERBOSE" ]; then
+        VERBOSE="yes"
+    else
+        VERBOSE=
+    fi
+fi
+
+if [ -z "$PBUILDER_CACHE" ]; then
+    PBUILDER_CACHE="/var/cache/pbuilder"
+fi
+
+if [ -z "$BUILD_DIR" ]; then
+    BUILD_DIR="build"
+fi
+
+BUILD_DATA=$BUILD_DIR/data
+
+if [ -z "$UPDATE_TGZ" ] || [ "$UPDATE_TGZ" ]; then
+    UPDATE_TGZ=1
+else
+    UPDATE_TGZ=
+fi
+
+if [ -z "$GAINROOT" ]; then
+    GAINROOT=sudo
+fi
+
+cd "$REPREPRO_BASE_DIR"
+
+APP_NAME="wannaBuild"
+APP_VERSION="0.1"
+
+. ./probe.sh
+probeFile "lock.sh" "startup.sh"
+
+lockApplication
+
+if [ $VERBOSE ]; then
+	sayHello
+fi
+
+#
+# Let's check the deb arch we are building for
+#
+if [ -z $DEB_BUILD_ARCH ];then
+    for a in `dpkg-architecture`; do
+        export $a
+    done
+fi
+
+set +e
+
+for LIST in $BUILD_DATA/*; do
+    if [ ! -f $LIST ]; then
+        continue
+    fi
+
+    checkUnlock
+
+    DISTRO="`echo "$LIST" | awk -F. '{ print $2 }'`"
+
+    if [ $VERBOSE ]; then
+        echo "Processing packages to be built for $DISTRO"
+    fi
+
+    if [ $UPDATE_TGZ ]; then
+        if [ $VERBOSE ]; then
+            echo "Executing pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz"
+        fi
+        $GAINROOT pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz > $BUILD_DIR/logs/${DISTRO}.update
+    else
+        if [ $VERBOSE ]; then
+            echo "Not updating ${PBUILDER_CACHE}/${DISTRO}.tgz, as requested"
+        fi
+    fi
+
+    for PACKAGE_L in `cat $LIST`; do
+        S_PACKAGE="`echo "$PACKAGE_L" | awk '-F|' '{ print $1 }'`"
+        Arch="`echo "$PACKAGE_L" | awk '-F|' '{ print $2 }'`"
+
+	checkUnlock
+
+        if [ $VERBOSE ]; then
+            echo -e "\tProcessing source package $S_PACKAGE"
+        fi
+
+        if [ "$Arch" != "${DEB_BUILD_ARCH}" ]; then
+            if [ $VERBOSE ]; then
+                echo -e "\tIgnoring entry: $PACKAGE_L (not a good arch)"
+            fi
+            continue
+        fi
+
+        if [ ! -f "${ACCEPTED}/${S_PACKAGE}.dsc" ]; then
+            if [ $VERBOSE ]; then
+                echo -e "\tRemoving entry: $PACKAGE_L (file not found)"
+            fi
+            sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
+            sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
+            continue
+        fi
+
+        #BUILDOPTS="-a${DEB_BUILD_ARCH} -t${DEB_BUILD_GNU_TYPE} -b"
+        BUILDOPTS=""
+        PBUILDEROPTS=""
+        BUILDALL=0
+
+        #
+        # Check whether we are building binary-arch or also include indep
+        #
+        if [ -z "`cat $LIST | grep "$S_PACKAGE|all"`" ]; then
+            PBUILDEROPTS+=' --binary-arch'
+        else
+            BUILDALL=1
+            if [ $VERBOSE ]; then
+                echo -e "\t\tAlso going to build 'all'"
+            fi
+        fi
+
+        #
+        # Create a temp dir where the results are going to be placed after building
+        # TODO: fix this thing!!! pdebuilder should be called
+        RESULTSDIR=`mktemp -d -p $BUILD_DIR/ XXXXXXXXXXX` || exit 1
+
+        if [ $VERBOSE ]; then
+            echo -e "\t\tStarting pbuilder --build ${PBUILDEROPTS} --debbuildopts ${BUILDOPTS} --buildresult ${RESULTSDIR} --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz ${ACCEPTED}/${S_PACKAGE}.dsc"
+        fi
+
+        #
+        # Finally build
+        #  pdebuild/pbuilder options must be setup in the pbuilderrc file
+        #
+        $GAINROOT pbuilder --build ${PBUILDEROPTS} --debbuildopts "${BUILDOPTS}" --buildresult ${RESULTSDIR} --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz ${ACCEPTED}/${S_PACKAGE}.dsc > $BUILD_DIR/logs/$S_PACKAGE 2> $BUILD_DIR/logs/$S_PACKAGE.error
+
+        #
+        # Make sure we got something
+        #
+
+        if [ ! -f "${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes" ]; then
+            if [ $VERBOSE ]; then
+                echo -e "\t\tCould not find ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes, build failed"
+            fi
+            echo "${PACKAGE_L}" >> $BUILD_DATA/failedToBuild.${DISTRO}
+            sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
+            sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
+            continue
+        fi
+
+        FILES="`cat ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes | egrep "[0-9a-f]{32} [0-9]+ [a-z]+ [a-z]+ .*\.deb" | sed "s/ /|/g;"`"
+        for FEntry in $FILES; do
+            if [ -z "$FEntry" ]; then
+                continue
+            fi
+
+            F="`echo "$FEntry" | awk '-F|' '{ print $6 }'`"
+
+            if [ $VERBOSE ]; then
+                echo -e "\t\tInstalling ${RESULTSDIR}/$F in $INCOMING/${DISTRO}/"
+            fi
+
+            mv ${RESULTSDIR}/$F $INCOMING/${DISTRO}/
+        done
+
+        if [ $VERBOSE ]; then
+            echo -e "\t\tInstalling ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes in $INCOMING/${DISTRO}/"
+        fi
+
+        mv ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes $INCOMING/${DISTRO}/
+
+        sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
+        sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
+
+        FilesInBuild="`ls ${RESULTSDIR}/*`"
+        if [ $VERBOSE ]; then
+            echo -e "\t\tCleaning results directory (${RESULTSDIR}):"
+        fi
+
+        for F in "$FilesInBuild"; do
+            F="${RESULTSDIR}/${F}"
+            if [ $VERBOSE ]; then
+                echo -e "\t\trm -rf $F"
+            fi
+            rm -rf $F
+        done
+        rm -rf ${RESULTSDIR}
+
+    done
+done
+
+unlockApplication
+exit 0

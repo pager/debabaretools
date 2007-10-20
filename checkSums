@@ -1,0 +1,166 @@
+#!/bin/sh
+#
+# Simple script that makes sure the md5sums specified in a .dsc/.changes file is ok
+#
+# NOT_HUMAN=1 is intended to be used by programs so it is easier for them to parse the output
+# exit status code meanins are:
+#  0: ok
+#  1: no file was specified
+#  2: some error while processing the file occured
+#
+# Not human message formats:
+#  CODE|FILE[|REAL_VALUE|FILE_VALUE]
+# Being | a separator of values instead of a logical OR
+# CODE can be: 
+#        FE (File doesn't Exist)
+#        IF (Invalid Format)
+#        SZ (SiZe check failed)
+#        MD5 (MD5sum check failed)
+#        OK (everything fine)
+# FILE is the file name (either the input filename or one of the being-processed files)
+# REAL_VALUE the real value for a check (e.g. real md5sum)
+# FILE_VALUE the value specified by the .dsc/.changes file
+#
+# Note: OK messages (either NOT_HUMAN=1 or 0) are only displayed when VERBOSE is set
+# 2nd note: an OK message when NOT_HUMAN=1 and VERBOSE is set will be like OK|FILE|SIZE|MD5SUM
+#
+
+if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
+	set -x
+fi
+
+set -e
+
+if [ -z "$1" ]; then
+    echo "Usage: $0 FILE.dsc|FILE.changes [VERBOSE]"
+    echo "Environment options: NOT_HUMAN=0|1 (default: 0)"
+    exit 1
+fi
+
+# Now process options
+
+if [ -z "$NOT_HUMAN" ]; then
+    NOT_HUMAN=
+else 
+    if [ "$NOT_HUMAN" ]; then
+        NOT_HUMAN="yes"
+    else
+        NOT_HUMAN=
+    fi
+fi
+
+if [ ! -z "$2" ] && [ "$2" = "VERBOSE" ]; then
+    VERBOSE="yes"
+else
+    VERBOSE=
+fi
+
+# Lets process the file
+
+if [ ! -f "$1" ]; then
+    if [ $NOT_HUMAN ]; then
+            echo "FE|$1"
+    else
+        echo "File $1 doesn't exist!"
+    fi
+    exit 2
+fi
+
+# detect format according to file extension:
+if [ ! -z "`echo $1 | egrep '\.changes$'`" ]; then
+    FORMAT=changes
+elif [ ! -z "`echo $1 | egrep '\.dsc$'`" ]; then
+    FORMAT=dsc
+else
+    if [ $NOT_HUMAN ]; then
+            echo "IF|$1"
+    else
+        echo "File $1 is in an uncomprehensible format!"
+    fi
+    exit 2
+fi
+
+# $CONTENTS stores the file information listed in the .changes/.dsc file
+CONTENTS=
+
+if [ "$FORMAT" = "changes" ]; then
+    CONTENTS="`cat "$1" | egrep "[0-9a-f]{32} [0-9]+ [a-z]+ [a-z]+ .*" | sed "s/ /|/g;"`"
+else
+    CONTENTS="`cat "$1" | egrep "[0-9a-f]{32} [0-9]+ .*" | sed "s/ /|/g;"`"
+fi
+
+# nothing? this can't be a valid file
+if [ -z "$CONTENTS" ]; then
+    if [ $NOT_HUMAN ]; then
+            echo "IF|$1"
+    else
+        echo "File $1 is in an uncomprehensible format!"
+    fi
+    exit 2
+fi
+
+for ENTRY in $CONTENTS; do
+    
+    if [ -z "$ENTRY" ]; then
+        continue
+    fi
+    
+    if [ "$FORMAT" = "changes" ]; then
+        FILE="`echo "$ENTRY" | awk '-F|' '{ print $6 }'`"
+    else
+        FILE="`echo "$ENTRY" | awk '-F|' '{ print $4 }'`"
+    fi
+
+    SIZE="`echo "$ENTRY" | awk '-F|' '{ print $3 }'`"
+    MD5SUM="`echo "$ENTRY" | awk '-F|' '{ print $2 }'`"
+    
+    if [ ! -f "$FILE" ]; then
+        if [ $NOT_HUMAN ]; then
+            echo "FE|$FILE"
+        else
+            echo "Couldn't find $FILE!"
+        fi
+        exit 2
+    fi
+    
+    RSIZE="`du -b "$FILE" | awk "-F " '{ print $1 }'`"
+    
+    if [ "$RSIZE" != "$SIZE" ]; then
+        if [ $NOT_HUMAN ]; then
+            echo "SZ|$FILE|$RSIZE|$SIZE"
+        else
+            echo "Size of $FILE ($RSIZE) doesn't match $SIZE"
+        fi
+        exit 2
+    fi
+    
+    RMD5SUM="`md5sum "$FILE" | awk "-F " '{ print $1 }'`"
+    
+    if [ "$RMD5SUM" != "$MD5SUM" ]; then
+        if [ $NOT_HUMAN ]; then
+            echo "MD5|$FILE|$RMD5SUM|$MD5SUM"
+        else
+            echo "MD5sum of $FILE ($RMD5SUM) doesn't match $MD5SUM"
+        fi
+        exit 2
+    fi
+    
+    if [ $VERBOSE ]; then
+        if [ $NOT_HUMAN ]; then
+            echo "OK|$FILE|$RMD5SUM|$RSIZE"
+        else
+            echo "$FILE is ok!"
+        fi
+    fi
+    
+done
+
+if [ $VERBOSE ]; then
+    if [ $NOT_HUMAN ]; then
+        echo "OK|$1"
+    else
+        echo "All files specified by $FILE are ok! :)"
+    fi
+fi
+
+exit 0

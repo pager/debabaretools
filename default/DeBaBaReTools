@@ -1,0 +1,13 @@
+# DeBaBaReTools general configuration file
+#
+
+# comment next line to enable the default settings (it is strongly recommended to customize in a per-user basis)
+NO_DEFAULTS=1
+
+if [ -z "$BASE_DIR" ] && [ -z "$NO_DEFAULTS" ]; then
+	BASE_DIR="/var/lib/DeBaBaReTools"
+fi
+
+if [ -z "$BACKEND_DIR" ] && [ -z "$NO_DEFAULTS" ]; then
+	BACKEND_DIR="/usr/share/DeBaBaReTools/backends"
+fi

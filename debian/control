@@ -1,0 +1,13 @@
+Source: debabaretools
+Section: admin
+Priority: extra
+Maintainer: Raphael Geissert <atomo64@gmail.com>
+Build-Depends: debhelper (>= 5)
+Standards-Version: 3.7.2
+
+Package: debabaretools
+Architecture: all
+Depends: ${misc:Depends}, gpgv
+Recommends: bash, reprepro
+Description: The Debian Bash-Based Repository Tools
+ <insert long description, indented with spaces>

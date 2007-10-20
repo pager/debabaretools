@@ -1,0 +1,129 @@
+#!/bin/sh
+
+if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
+    set -x
+fi
+
+if [ -f "/etc/default/DeBaBaReTools" ]; then
+        . /etc/default/DeBaBaReTools
+fi
+
+if [ -f "$HOME/.DeBaBaReToolsrc" ]; then
+        . "$HOME/.DeBaBaReToolsrc"
+fi
+
+if [ -f "/etc/default/processIncoming" ]; then
+        . /etc/default/processIncoming
+fi
+
+if [ -f "$HOME/.processIncomingrc" ]; then
+        . "$HOME/.processIncomingrc"
+fi
+
+. $BACKEND_DIR/probe.sh
+# we first load the settings
+probeFile "config"
+
+cd "$BASE_DIR"
+
+# afterwards we load the rest
+probeFile "lock" "startup"
+
+APP_NAME="processIncoming"
+APP_VERSION="0.1"
+
+lockApplication
+
+if [ -z "$INCOMING" ]; then
+    INCOMING="incoming"
+fi
+
+if [ -z "$ACCEPTED" ]; then
+    ACCEPTED="incoming/accepted"
+fi
+
+if [ -z "$RECLAIMED_FILE" ]; then
+    RECLAIMED_FILE="incoming/accepted/reclaimed"
+fi
+
+if [ -z "$KEYRING" ]; then
+    KEYRING="trustedkeys.gpg"
+fi
+
+if [ $VERBOSE ]; then
+	sayHello
+fi
+
+#
+# Process files in the incoming directory (not yet accepted)
+#
+
+CURRENT="`find "$INCOMING" -maxdepth 1 -type f`"
+CURRENT_CHANGES="`echo "$CURRENT" | egrep ".*\.changes$"`"
+
+for CHANGES in $CURRENT_CHANGES; do
+    if [ -z "$CHANGES" ]; then
+        continue
+    fi
+    
+    OUTPUT="`gpgv --keyring "$KEYRING" --quiet "$CHANGES" 2>&1`"
+    if [ "$?" != "0" ]; then
+        echo "$OUTPUT"
+        exit 2
+    fi
+    
+    CHANGES=`basename "$CHANGES"`
+    
+    OUTPUT="`(cd $INCOMING; NOT_HUMAN=1 ../checkSums "$CHANGES" VERBOSE )`"
+    if [ "$?" != "0" ]; then
+        echo "$OUTPUT"
+        exit 2
+    fi
+    
+    # We are still here: signature, file size and md5sums are all fine
+    # now let's add the files to the reclaimed file so they are moved to new/ and not deleted
+    echo "$CHANGES" >> "$RECLAIMED_FILE"
+    for F in "$OUTPUT"; do
+        FILE="`echo "$F" | awk "-F|" '{ print $2 }'`"
+        echo "$FILE" >> "$RECLAIMED_FILE"
+    done
+done
+
+# Remove duplicates
+cat "$RECLAIMED_FILE" | sort -u > "$RECLAIMED_FILE"
+
+# Prepare list of files to be removed (not reclaimed by anyone)
+for F in `cat "$RECLAIMED_FILE"`; do
+    CURRENT="`echo "$CURRENT" | sed "s#$INCOMING/$F##"`"
+done
+
+# Kill them all!
+if [ ! -z "$CURRENT" ]; then
+    (cd "$INCOMING" \
+    rm "$CURRENT")
+fi
+
+# Move the files to the $ACCEPTED directory so they are processed by some other scripts
+for F in `cat "$RECLAIMED_FILE"`; do
+	mv "$INCOMING/$F" "$ACCEPTED/"
+done
+
+# After moving all files we don't need this list anymore
+unlink "$RECLAIMED_FILE"
+
+#
+# Already built packages: As simple as this:
+#
+
+reprepro processincoming toUnstable
+reprepro processincoming toTesting
+reprepro processincoming toStable
+reprepro processincoming toOldstable
+
+#
+# Files are not taken directly from incoming but from incoming/DISTRO
+# this provides us of a pro-processing and prevent the installation of virtually anything
+#
+
+unlockApplication
+exit 0
