@@ -4,57 +4,46 @@ if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
 fi
 
-if [ -z "$VERBOSE" ]; then
-    VERBOSE=
-else 
-    if [ "$VERBOSE" ]; then
-        VERBOSE="yes"
-    else
-        VERBOSE=
-    fi
+declare -r APP_NAME="wannaBuild"
+declare -r APP_VERSION="0.1"
+
+if [ -f "/etc/default/DeBaBaReTools" ]; then
+        . /etc/default/DeBaBaReTools
 fi
 
-if [ -z "$PBUILDER_CACHE" ]; then
-    PBUILDER_CACHE="/var/cache/pbuilder"
+if [ -f "$HOME/.DeBaBaReToolsrc" ]; then
+        . "$HOME/.DeBaBaReToolsrc"
 fi
 
-if [ -z "$BUILD_DIR" ]; then
-    BUILD_DIR="build"
+if [ -f "/etc/default/$APP_NAME" ]; then
+	. /etc/default/$APP_NAME
 fi
 
-BUILD_DATA=$BUILD_DIR/data
-
-if [ -z "$UPDATE_TGZ" ] || [ "$UPDATE_TGZ" ]; then
-    UPDATE_TGZ=1
-else
-    UPDATE_TGZ=
+if [ -f "$HOME/.${APP_NAME}rc" ]; then
+        . "$HOME/.${APP_NAME}rc"
 fi
 
-if [ -z "$GAINROOT" ]; then
-    GAINROOT=sudo
-fi
+. $BACKEND_DIR/probe.sh
 
-cd "$REPREPRO_BASE_DIR"
+# we first load the settings
+probeFile "config"
 
-APP_NAME="wannaBuild"
-APP_VERSION="0.1"
+cd "$BASE_DIR"
 
-. ./probe.sh
-probeFile "lock.sh" "startup.sh"
+# afterwards we load the rest
+probeFile "lock" "startup" "setDefault" "verbosity"
 
 lockApplication
 
-if [ $VERBOSE ]; then
-	sayHello
-fi
+setDefault "VERBOSE" "0"
+setDefault "PBUILDER_CACHE" "/var/cache/pbuilder"
+setDefault "BUILD_DIR" "build"
+setDefault "BUILD_DATA" "$BUILD_DIR/data"
+setDefault "UPDATE_TGZ" "1"
+setDefault "GAINROOT" "sudo"
 
-#
-# Let's check the deb arch we are building for
-#
-if [ -z $DEB_BUILD_ARCH ];then
-    for a in `dpkg-architecture`; do
-        export $a
-    done
+if verbose; then
+	sayHello
 fi
 
 set +e
@@ -68,19 +57,14 @@ for LIST in $BUILD_DATA/*; do
 
     DISTRO="`echo "$LIST" | awk -F. '{ print $2 }'`"
 
-    if [ $VERBOSE ]; then
-        echo "Processing packages to be built for $DISTRO"
-    fi
+    Say "Processing packages to be built for $DISTRO"
 
-    if [ $UPDATE_TGZ ]; then
-        if [ $VERBOSE ]; then
-            echo "Executing pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz"
-        fi
+    if [ $UPDATE_TGZ -gt 0 ]; then
+        Say "Executing pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz"
+        
         $GAINROOT pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz > $BUILD_DIR/logs/${DISTRO}.update
     else
-        if [ $VERBOSE ]; then
-            echo "Not updating ${PBUILDER_CACHE}/${DISTRO}.tgz, as requested"
-        fi
+        Say "Not updating ${PBUILDER_CACHE}/${DISTRO}.tgz, as requested"
     fi
 
     for PACKAGE_L in `cat $LIST`; do
@@ -89,21 +73,16 @@ for LIST in $BUILD_DATA/*; do
 
 	checkUnlock
 
-        if [ $VERBOSE ]; then
-            echo -e "\tProcessing source package $S_PACKAGE"
-        fi
+        Say  "\tProcessing source package $S_PACKAGE"
 
         if [ "$Arch" != "${DEB_BUILD_ARCH}" ]; then
-            if [ $VERBOSE ]; then
-                echo -e "\tIgnoring entry: $PACKAGE_L (not a good arch)"
-            fi
+            Say  "\tIgnoring entry: $PACKAGE_L (not a good arch)"
             continue
         fi
 
         if [ ! -f "${ACCEPTED}/${S_PACKAGE}.dsc" ]; then
-            if [ $VERBOSE ]; then
-                echo -e "\tRemoving entry: $PACKAGE_L (file not found)"
-            fi
+            Say "\tRemoving entry: $PACKAGE_L (file not found)"
+            
             sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
             sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
             continue
@@ -121,9 +100,7 @@ for LIST in $BUILD_DATA/*; do
             PBUILDEROPTS+=' --binary-arch'
         else
             BUILDALL=1
-            if [ $VERBOSE ]; then
-                echo -e "\t\tAlso going to build 'all'"
-            fi
+            Say "\t\tAlso going to build 'all'"
         fi
 
         #
@@ -131,9 +108,7 @@ for LIST in $BUILD_DATA/*; do
         # TODO: fix this thing!!! pdebuilder should be called
         RESULTSDIR=`mktemp -d -p $BUILD_DIR/ XXXXXXXXXXX` || exit 1
 
-        if [ $VERBOSE ]; then
-            echo -e "\t\tStarting pbuilder --build ${PBUILDEROPTS} --debbuildopts ${BUILDOPTS} --buildresult ${RESULTSDIR} --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz ${ACCEPTED}/${S_PACKAGE}.dsc"
-        fi
+        Say "\t\tStarting pbuilder --build ${PBUILDEROPTS} --debbuildopts ${BUILDOPTS} --buildresult ${RESULTSDIR} --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz ${ACCEPTED}/${S_PACKAGE}.dsc"
 
         #
         # Finally build
@@ -146,9 +121,8 @@ for LIST in $BUILD_DATA/*; do
         #
 
         if [ ! -f "${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes" ]; then
-            if [ $VERBOSE ]; then
-                echo -e "\t\tCould not find ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes, build failed"
-            fi
+            Say "\t\tCould not find ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes, build failed"
+            
             echo "${PACKAGE_L}" >> $BUILD_DATA/failedToBuild.${DISTRO}
             sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
             sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
@@ -163,16 +137,12 @@ for LIST in $BUILD_DATA/*; do
 
             F="`echo "$FEntry" | awk '-F|' '{ print $6 }'`"
 
-            if [ $VERBOSE ]; then
-                echo -e "\t\tInstalling ${RESULTSDIR}/$F in $INCOMING/${DISTRO}/"
-            fi
+            Say "\t\tInstalling ${RESULTSDIR}/$F in $INCOMING/${DISTRO}/"
 
             mv ${RESULTSDIR}/$F $INCOMING/${DISTRO}/
         done
 
-        if [ $VERBOSE ]; then
-            echo -e "\t\tInstalling ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes in $INCOMING/${DISTRO}/"
-        fi
+        Say "\t\tInstalling ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes in $INCOMING/${DISTRO}/"
 
         mv ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes $INCOMING/${DISTRO}/
 
@@ -180,15 +150,11 @@ for LIST in $BUILD_DATA/*; do
         sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
 
         FilesInBuild="`ls ${RESULTSDIR}/*`"
-        if [ $VERBOSE ]; then
-            echo -e "\t\tCleaning results directory (${RESULTSDIR}):"
-        fi
+        Say "\t\tCleaning results directory (${RESULTSDIR}):"
 
         for F in "$FilesInBuild"; do
             F="${RESULTSDIR}/${F}"
-            if [ $VERBOSE ]; then
-                echo -e "\t\trm -rf $F"
-            fi
+            Say "\t\trm -rf $F"
             rm -rf $F
         done
         rm -rf ${RESULTSDIR}

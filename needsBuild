@@ -9,6 +9,9 @@ fi
 
 set -e
 
+declare -r APP_NAME="needsBuild"
+declare -r APP_VERSION="0.2"
+
 if [ -f "/etc/default/DeBaBaReTools" ]; then
         . /etc/default/DeBaBaReTools
 fi
@@ -17,51 +20,32 @@ if [ -f "$HOME/.DeBaBaReToolsrc" ]; then
         . "$HOME/.DeBaBaReToolsrc"
 fi
 
-if [ -f "/etc/default/needsBuild" ]; then
-	. /etc/default/needsBuild
+if [ -f "/etc/default/$APP_NAME" ]; then
+	. /etc/default/$APP_NAME
 fi
 
-if [ -f "$HOME/.needsBuildrc" ]; then
-        . "$HOME/.needsBuildrc"
+if [ -f "$HOME/.${APP_NAME}rc" ]; then
+        . "$HOME/.${APP_NAME}rc"
 fi
-
-APP_NAME="needsBuild"
-APP_VERSION="0.2"
 
 . $BACKEND_DIR/probe.sh
+
 # we first load the settings
 probeFile "config"
 
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "codenamesTable" "buildQueue"
+probeFile "lock" "startup" "codenamesTable" "buildQueue" "setDefault" "verbosity"
 
 lockApplication
 
 needsBuild_dataDir=build/data
 
-if [ -z "$VERBOSE" ]; then
-    VERBOSE=
-else 
-    if [ "$VERBOSE" ]; then
-        VERBOSE="yes"
-    else
-        VERBOSE=
-    fi
-fi
-
-if [ -z "$INCOMING" ]; then
-    INCOMING="incoming"
-fi
-
-if [ -z "$ACCEPTED" ]; then
-    ACCEPTED="incoming/accepted"
-fi
-
-if [ -z "$REPOSITORY" ]; then
-    REPOSITORY="debian"
-fi
+setDefault "VERBOSE" "0"
+setDefault "INCOMING" "incoming"
+setDefault "ACCEPTED" "incoming/accepted"
+setDefault "REPOSITORY" "debian"
 
 t=`cat conf/distributions  | grep Architectures | sort -r -u | awk '-F: ' '{ print $2 }'`
 
@@ -71,9 +55,9 @@ for a in $t; do
     fi
 done
 
-if [ $VERBOSE ]; then
+if verbose; then
 	sayHello
-	echo "Architectures: ${BUILDARCHS}all"
+	Say "Architectures: ${BUILDARCHS}all"
 fi
 
 for CHANGES in $ACCEPTED/*.changes; do
@@ -83,9 +67,7 @@ for CHANGES in $ACCEPTED/*.changes; do
 
 	checkUnlock
 	
-	if [ $VERBOSE ]; then
-		echo "Now processing $CHANGES"
-	fi
+	verbose "Now processing $CHANGES"
 
         CHANGES=`basename $CHANGES`
 

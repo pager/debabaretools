@@ -4,6 +4,9 @@ if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
 fi
 
+declare -r APP_NAME="processIncoming"
+declare -r APP_VERSION="0.1"
+
 if [ -f "/etc/default/DeBaBaReTools" ]; then
         . /etc/default/DeBaBaReTools
 fi
@@ -12,12 +15,12 @@ if [ -f "$HOME/.DeBaBaReToolsrc" ]; then
         . "$HOME/.DeBaBaReToolsrc"
 fi
 
-if [ -f "/etc/default/processIncoming" ]; then
-        . /etc/default/processIncoming
+if [ -f "/etc/default/$APP_NAME" ]; then
+	. /etc/default/$APP_NAME
 fi
 
-if [ -f "$HOME/.processIncomingrc" ]; then
-        . "$HOME/.processIncomingrc"
+if [ -f "$HOME/.${APP_NAME}rc" ]; then
+        . "$HOME/.${APP_NAME}rc"
 fi
 
 . $BACKEND_DIR/probe.sh
@@ -27,30 +30,17 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup"
-
-APP_NAME="processIncoming"
-APP_VERSION="0.1"
+probeFile "lock" "startup" "setDefault" "verbosity"
 
 lockApplication
 
-if [ -z "$INCOMING" ]; then
-    INCOMING="incoming"
-fi
+setDefault "VERBOSE" "0"
+setDefault "INCOMING" "incoming"
+setDefault "ACCEPTED" "incoming/accepted"
+setDefault "RECLAIMED_FILE" "incoming/accepted/reclaimed"
+setDefault "KEYRING" "trustedkeys.gpg"
 
-if [ -z "$ACCEPTED" ]; then
-    ACCEPTED="incoming/accepted"
-fi
-
-if [ -z "$RECLAIMED_FILE" ]; then
-    RECLAIMED_FILE="incoming/accepted/reclaimed"
-fi
-
-if [ -z "$KEYRING" ]; then
-    KEYRING="trustedkeys.gpg"
-fi
-
-if [ $VERBOSE ]; then
+if verbose; then
 	sayHello
 fi
 
@@ -68,7 +58,7 @@ for CHANGES in $CURRENT_CHANGES; do
     
     OUTPUT="`gpgv --keyring "$KEYRING" --quiet "$CHANGES" 2>&1`"
     if [ "$?" != "0" ]; then
-        echo "$OUTPUT"
+        Say "$OUTPUT"
         exit 2
     fi
     
@@ -76,7 +66,7 @@ for CHANGES in $CURRENT_CHANGES; do
     
     OUTPUT="`(cd $INCOMING; NOT_HUMAN=1 ../checkSums "$CHANGES" VERBOSE )`"
     if [ "$?" != "0" ]; then
-        echo "$OUTPUT"
+        Say "$OUTPUT"
         exit 2
     fi
     
@@ -98,6 +88,7 @@ for F in `cat "$RECLAIMED_FILE"`; do
 done
 
 # Kill them all!
+# TODO: rather move them to invalid/rejected and kill them from there after a delay
 if [ ! -z "$CURRENT" ]; then
     (cd "$INCOMING" \
     rm "$CURRENT")
