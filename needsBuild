@@ -1,5 +1,24 @@
 #!/bin/sh
 
+####################
+#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#
+#    This file is part of DeBaBaReTools
+#
+#    DeBaBaReTools is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    DeBaBaReTools is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
+####################
+
 ## TODO: all the other TODOs + find a way to build when source was not uploaded 'cause it's already in rep!!!!
 ##       ignore packages in failedToBuild.$DISTRO (should be manually removed from that file)
 
@@ -12,16 +31,16 @@ set -e
 declare -r APP_NAME="needsBuild"
 declare -r APP_VERSION="0.2"
 
-if [ -f "/etc/default/DeBaBaReTools" ]; then
-        . /etc/default/DeBaBaReTools
+if [ -f "/etc/DeBaBaReTools/common.conf" ]; then
+        . /etc/DeBaBaReTools/common.conf
 fi
 
 if [ -f "$HOME/.DeBaBaReToolsrc" ]; then
         . "$HOME/.DeBaBaReToolsrc"
 fi
 
-if [ -f "/etc/default/$APP_NAME" ]; then
-	. /etc/default/$APP_NAME
+if [ -f "/etc/DeBaBaReTools/$APP_NAME.conf" ]; then
+	. /etc/DeBaBaReTools/$APP_NAME.conf
 fi
 
 if [ -f "$HOME/.${APP_NAME}rc" ]; then
@@ -67,7 +86,7 @@ for CHANGES in $ACCEPTED/*.changes; do
 
 	checkUnlock
 	
-	verbose "Now processing $CHANGES"
+	Say "Now processing $CHANGES"
 
         CHANGES=`basename $CHANGES`
 

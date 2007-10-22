@@ -1,5 +1,24 @@
 #!/bin/sh
 
+####################
+#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#
+#    This file is part of DeBaBaReTools
+#
+#    DeBaBaReTools is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    DeBaBaReTools is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
+####################
+
 if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
 fi
@@ -7,16 +26,16 @@ fi
 declare -r APP_NAME="wannaBuild"
 declare -r APP_VERSION="0.1"
 
-if [ -f "/etc/default/DeBaBaReTools" ]; then
-        . /etc/default/DeBaBaReTools
+if [ -f "/etc/DeBaBaReTools/common.conf" ]; then
+        . /etc/DeBaBaReTools/common.conf
 fi
 
 if [ -f "$HOME/.DeBaBaReToolsrc" ]; then
         . "$HOME/.DeBaBaReToolsrc"
 fi
 
-if [ -f "/etc/default/$APP_NAME" ]; then
-	. /etc/default/$APP_NAME
+if [ -f "/etc/DeBaBaReTools/$APP_NAME.conf" ]; then
+	. /etc/DeBaBaReTools/$APP_NAME.conf
 fi
 
 if [ -f "$HOME/.${APP_NAME}rc" ]; then

@@ -1,5 +1,24 @@
 #!/bin/sh
 
+####################
+#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#
+#    This file is part of DeBaBaReTools
+#
+#    DeBaBaReTools is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    DeBaBaReTools is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
+####################
+
 if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
 fi
@@ -7,16 +26,16 @@ fi
 declare -r APP_NAME="processIncoming"
 declare -r APP_VERSION="0.1"
 
-if [ -f "/etc/default/DeBaBaReTools" ]; then
-        . /etc/default/DeBaBaReTools
+if [ -f "/etc/DeBaBaReTools/common.conf" ]; then
+        . /etc/DeBaBaReTools/common.conf
 fi
 
 if [ -f "$HOME/.DeBaBaReToolsrc" ]; then
         . "$HOME/.DeBaBaReToolsrc"
 fi
 
-if [ -f "/etc/default/$APP_NAME" ]; then
-	. /etc/default/$APP_NAME
+if [ -f "/etc/DeBaBaReTools/$APP_NAME.conf" ]; then
+	. /etc/DeBaBaReTools/$APP_NAME.conf
 fi
 
 if [ -f "$HOME/.${APP_NAME}rc" ]; then
@@ -24,79 +43,108 @@ if [ -f "$HOME/.${APP_NAME}rc" ]; then
 fi
 
 . $BACKEND_DIR/probe.sh
+
 # we first load the settings
 probeFile "config"
 
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "setDefault" "verbosity"
+probeFile "lock" "startup" "setDefault" "verbosity" "signature"
 
 lockApplication
 
 setDefault "VERBOSE" "0"
-setDefault "INCOMING" "incoming"
-setDefault "ACCEPTED" "incoming/accepted"
-setDefault "RECLAIMED_FILE" "incoming/accepted/reclaimed"
-setDefault "KEYRING" "trustedkeys.gpg"
+setDefault "UPLOADQUEUE" "$BASE_DIR/pub/UploadQueue"
+setDefault "INCOMING" "$BASE_DIR/incoming"
+setDefault "ACCEPTED" "$INCOMING/accepted"
+setDefault "REJECTED" "$INCOMING/rejected"
+setDefault "REJECTED_POLICY" "move"
+setDefault "RECLAIMED_FILE" "$INCOMING/accepted/reclaimed"
+setDefault "KEYRING" "uploaders.gpg"
+setDefault "CHECKSUMS" "`which checkSums`"
 
 if verbose; then
 	sayHello
 fi
 
+if [ ! -x "$CHECKSUMS" ]; then
+	Say "checkSums couldn't be found, checking in $BACKEND_DIR"
+
+	if [ -x "$BACKEND_DIR/checkSums" ]; then
+		CHECKSUMS="$BACKEND_DIR/checkSums"
+	else
+		Say "checkSums (or compatible executable) couldn't be found, aborting"
+		exit 1
+	fi
+fi
+
 #
-# Process files in the incoming directory (not yet accepted)
+# Process files in the UploadQueue directory (not yet accepted)
 #
 
-CURRENT="`find "$INCOMING" -maxdepth 1 -type f`"
+CURRENT="`find "$UPLOADQUEUE" -maxdepth 1 -type f`"
 CURRENT_CHANGES="`echo "$CURRENT" | egrep ".*\.changes$"`"
 
 for CHANGES in $CURRENT_CHANGES; do
-    if [ -z "$CHANGES" ]; then
-        continue
-    fi
-    
-    OUTPUT="`gpgv --keyring "$KEYRING" --quiet "$CHANGES" 2>&1`"
-    if [ "$?" != "0" ]; then
-        Say "$OUTPUT"
-        exit 2
-    fi
-    
-    CHANGES=`basename "$CHANGES"`
-    
-    OUTPUT="`(cd $INCOMING; NOT_HUMAN=1 ../checkSums "$CHANGES" VERBOSE )`"
-    if [ "$?" != "0" ]; then
-        Say "$OUTPUT"
-        exit 2
-    fi
-    
-    # We are still here: signature, file size and md5sums are all fine
-    # now let's add the files to the reclaimed file so they are moved to new/ and not deleted
-    echo "$CHANGES" >> "$RECLAIMED_FILE"
-    for F in "$OUTPUT"; do
-        FILE="`echo "$F" | awk "-F|" '{ print $2 }'`"
-        echo "$FILE" >> "$RECLAIMED_FILE"
-    done
+	if [ -z "$CHANGES" ]; then
+		continue
+	fi
+
+	checkSign "$CHANGES" "$KEYRING"
+	if [ "$?" != "0" ]; then
+		exit 2
+	fi
+
+	CHANGES=`basename "$CHANGES"`
+
+	OUTPUT="`(cd $UPLOADQUEUE; NOT_HUMAN=1 $CHECKSUMS "$CHANGES" VERBOSE )`"
+	if [ "$?" != "0" ]; then
+		Say "$OUTPUT"
+		exit 2
+	fi
+
+	# We are still here: signature, file size and md5sums are all fine
+	# now let's add the files to the reclaimed file so they are not deleted
+	echo "$CHANGES" >> "$RECLAIMED_FILE"
+	for F in "$OUTPUT"; do
+		FILE="`echo "$F" | awk "-F|" '{ print $2 }'`"
+		echo "$FILE" >> "$RECLAIMED_FILE"
+	done
 done
 
-# Remove duplicates
+# Remove duplicates (there shouldn't be any)
 cat "$RECLAIMED_FILE" | sort -u > "$RECLAIMED_FILE"
 
 # Prepare list of files to be removed (not reclaimed by anyone)
 for F in `cat "$RECLAIMED_FILE"`; do
-    CURRENT="`echo "$CURRENT" | sed "s#$INCOMING/$F##"`"
+	CURRENT="`echo "$CURRENT" | sed "s#$UPLOADQUEUE/$F##"`"
 done
 
-# Kill them all!
-# TODO: rather move them to invalid/rejected and kill them from there after a delay
-if [ ! -z "$CURRENT" ]; then
-    (cd "$INCOMING" \
-    rm "$CURRENT")
+if [ "$REJECTED_POLICY" == "kill" ]; then
+	# Kill them all!
+	if [ ! -z "$CURRENT" ]; then
+		for f in $CURRENT; do
+			Say "unlink'ing \"$UPLOADQUEUE/$f\""
+			unlink "$UPLOADQUEUE/$f"
+		done
+	fi
+elif [ "$REJECTED_POLICY" == "move" ]; then
+	# Move them all!
+	if [ ! -z "$CURRENT" ] && [ -d "$REJECTED" ]; then
+		for f in $CURRENT; do
+			Say "mv'ing \"$UPLOADQUEUE/$f\" to \"$REJECTED/\""
+			mv "$UPLOADQUEUE/$f" "$REJECTED/"
+		done
+	fi
+else
+	Say "Unknown REJECTED_POLICY: $REJECTED_POLICY, aborting"
+	exit 1
 fi
 
-# Move the files to the $ACCEPTED directory so they are processed by some other scripts
+# Move the files to $ACCEPTED so they are processed by some other scripts
 for F in `cat "$RECLAIMED_FILE"`; do
-	mv "$INCOMING/$F" "$ACCEPTED/"
+	mv "$UPLOADQUEUE/$F" "$ACCEPTED/"
 done
 
 # After moving all files we don't need this list anymore
