@@ -50,7 +50,7 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "setDefault" "verbosity" "signature"
+probeFile "lock" "startup" "setDefault" "verbosity" "signature" "repository"
 
 lockApplication
 
@@ -154,10 +154,7 @@ unlink "$RECLAIMED_FILE"
 # Already built packages: As simple as this:
 #
 
-reprepro processincoming toUnstable
-reprepro processincoming toTesting
-reprepro processincoming toStable
-reprepro processincoming toOldstable
+installIncoming
 
 #
 # Files are not taken directly from incoming but from incoming/DISTRO
