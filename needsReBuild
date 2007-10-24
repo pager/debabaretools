@@ -54,6 +54,8 @@ cd "$BASE_DIR"
 # afterwards we load the rest
 probeFile "lock" "startup" "codenamesTable" "buildQueue" "setDefault" "verbosity"
 
+setDefault "LOCK_DIR" "$BASE_DIR"
+
 lockApplication
 
 unlockApplication

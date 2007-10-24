@@ -19,6 +19,9 @@
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
 
+## TODO: find a way to build when the source package is already installed in the repository
+## TODO: ignore packages in failedToBuild.$DISTRO (should be manually removed from that file)
+
 if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
 fi
@@ -52,14 +55,15 @@ cd "$BASE_DIR"
 # afterwards we load the rest
 probeFile "lock" "startup" "setDefault" "verbosity"
 
-lockApplication
-
+setDefault "LOCK_DIR" "$BASE_DIR"
 setDefault "VERBOSE" "0"
 setDefault "PBUILDER_CACHE" "/var/cache/pbuilder"
-setDefault "BUILD_DIR" "build"
+setDefault "BUILD_DIR" "$BASE_DIR/build"
 setDefault "BUILD_DATA" "$BUILD_DIR/data"
 setDefault "UPDATE_TGZ" "1"
 setDefault "GAINROOT" "sudo"
+
+lockApplication
 
 if verbose; then
 	sayHello

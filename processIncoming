@@ -52,8 +52,7 @@ cd "$BASE_DIR"
 # afterwards we load the rest
 probeFile "lock" "startup" "setDefault" "verbosity" "signature" "repository"
 
-lockApplication
-
+setDefault "LOCK_DIR" "$BASE_DIR"
 setDefault "VERBOSE" "0"
 setDefault "UPLOADQUEUE" "$BASE_DIR/pub/UploadQueue"
 setDefault "INCOMING" "$BASE_DIR/incoming"
@@ -61,8 +60,11 @@ setDefault "ACCEPTED" "$INCOMING/accepted"
 setDefault "REJECTED" "$INCOMING/rejected"
 setDefault "REJECTED_POLICY" "move"
 setDefault "RECLAIMED_FILE" "$INCOMING/accepted/reclaimed"
+setDefault "CHECK_SIGNATURE" "1"
 setDefault "KEYRING" "uploaders.gpg"
 setDefault "CHECKSUMS" "`which checkSums`"
+
+lockApplication
 
 if verbose; then
 	sayHello
@@ -87,13 +89,20 @@ CURRENT="`find "$UPLOADQUEUE" -maxdepth 1 -type f`"
 CURRENT_CHANGES="`echo "$CURRENT" | egrep ".*\.changes$"`"
 
 for CHANGES in $CURRENT_CHANGES; do
+	if [ shallUnlock ]; then
+		unlink "$RECLAIMED_FILE"
+		checkUnlock
+	fi
+
 	if [ -z "$CHANGES" ]; then
 		continue
 	fi
 
-	checkSign "$CHANGES" "$KEYRING"
-	if [ "$?" != "0" ]; then
-		exit 2
+	if [ "$CHECK_SIGNATURE" -eq 1 ]; then
+		checkSign "$CHANGES" "$KEYRING"
+		if [ "$?" != "0" ]; then
+			exit 2
+		fi
 	fi
 
 	CHANGES=`basename "$CHANGES"`
@@ -150,16 +159,10 @@ done
 # After moving all files we don't need this list anymore
 unlink "$RECLAIMED_FILE"
 
-#
-# Already built packages: As simple as this:
-#
+checkUnlock
 
+# Already ready-to-be-installed packages, as simple as this:
 installIncoming
-
-#
-# Files are not taken directly from incoming but from incoming/DISTRO
-# this provides us of a pro-processing and prevent the installation of virtually anything
-#
 
 unlockApplication
 exit 0

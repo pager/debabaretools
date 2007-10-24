@@ -17,5 +17,7 @@ egrep -r "[#]+[ \t]*TODO[:]?[ \t]*" ./ | \
 	grep -v '~:' | \
 	grep -v '.bak:' | \
 	grep -v "/default.sh" | \
+	sed -r "s/([#]+[ \t]*TODO[:]?[ \t]*)/ /g" | \
+	sed -r "s/([ \t]+)/ /g" | \
 	sed "s%^\./%%" \
 	>> TODO

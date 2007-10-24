@@ -19,8 +19,7 @@
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
 
-## TODO: all the other TODOs + find a way to build when source was not uploaded 'cause it's already in rep!!!!
-##       ignore packages in failedToBuild.$DISTRO (should be manually removed from that file)
+## TODO: replace the usage of awk with cut where possible
 
 if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
@@ -57,22 +56,15 @@ cd "$BASE_DIR"
 # afterwards we load the rest
 probeFile "lock" "startup" "codenamesTable" "buildQueue" "setDefault" "verbosity"
 
+setDefault "LOCK_DIR" "$BASE_DIR"
+setDefault "VERBOSE" "0"
+setDefault "INCOMING" "$BASE_DIR/incoming"
+setDefault "ACCEPTED" "$BASE_DIR/incoming/accepted"
+setDefault "REPOSITORY" "$BASE_DIR/debian"
+
 lockApplication
 
-needsBuild_dataDir=build/data
-
-setDefault "VERBOSE" "0"
-setDefault "INCOMING" "incoming"
-setDefault "ACCEPTED" "incoming/accepted"
-setDefault "REPOSITORY" "debian"
-
-t=`cat conf/distributions  | grep Architectures | sort -r -u | awk '-F: ' '{ print $2 }'`
-
-for a in $t; do
-    if [ "$a" != "source" ]; then
-        BUILDARCHS+="$a "
-    fi
-done
+getSupportedRepArchs
 
 if verbose; then
 	sayHello
@@ -85,28 +77,43 @@ for CHANGES in $ACCEPTED/*.changes; do
 	fi
 
 	checkUnlock
-	
+
 	Say "Now processing $CHANGES"
 
-        CHANGES=`basename $CHANGES`
+	CHANGES=`basename $CHANGES`
 
 	S_PACKAGE="`echo "$CHANGES" | awk -F_ '{ print $1 }'`_`echo "$CHANGES" | awk -F_ '{ print $2 }'`"
 
+	# if there's no source package, let's go to next .changes
+	## TODO: do not guess the .dsc file always is $ACCEPTED/$S_PACKAGE.dsc; better read from .changes
+	if [ ! -f "$ACCEPTED/$S_PACKAGE.dsc" ]; then
+		continue
+	fi
+
 	PACKAGE_V="`echo "$CHANGES" | awk -F_ '{ print $2 }'`"
 
-        CHANGES_ARCH="`echo "$CHANGES" | awk -F_ '{ print $3 }' | awk -F. '{ print $1 }'`"
+	CHANGES_ARCH="`echo "$CHANGES" | awk -F_ '{ print $3 }' | awk -F. '{ print $1 }'`"
 
-        TO_BUILD_IN="`cat ${ACCEPTED}/${S_PACKAGE}.dsc | grep Architecture: | awk '-F: ' '{ print $2 }'`"
+	TO_BUILD_IN="`cat $ACCEPTED/$S_PACKAGE.dsc | grep Architecture: | awk '-F: ' '{ print $2 }'`"
 
-        DISTRO="`cat ${ACCEPTED}/$CHANGES | grep Distribution: | awk '-F: ' '{ print $2 }'`"
+	DISTRO="`cat $ACCEPTED/$CHANGES | grep Distribution: | awk '-F: ' '{ print $2 }'`"
 
-        if [ "${TO_BUILD_IN}" = "any" ]; then
-            TO_BUILD_IN=${BUILDARCHS}
-        fi
+	if [ "$TO_BUILD_IN" = "any" ]; then
+		TO_BUILD_IN=$BUILDARCHS
+	else
+		_TO_BUILD_IN="$TO_BUILD_IN"
+		TO_BUILD_IN=
+		for a in ${_TO_BUILD_IN}; do
+			if [ "$a" == "all" ] || [ ! -z "`echo "$BUILDARCHS" | egrep "(^|[ ,]+)${a}([ ,]+|$)"`" ]; then
+				TO_BUILD_IN+="$a "
+			fi
+		done
+	fi
 
-        if [ ! -z "${TO_BUILD_IN}" ]; then
-            toBuild "$DISTRO" "$S_PACKAGE" "$PACKAGE_V" "$TO_BUILD_IN"
-        fi
+	if [ ! -z "$TO_BUILD_IN" ]; then
+		toBuild "$DISTRO" "$S_PACKAGE" "$PACKAGE_V" "$TO_BUILD_IN"
+	fi
+
 done
 
 unlockApplication

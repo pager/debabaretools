@@ -18,64 +18,68 @@
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
 
-if [ -z "$LOCK_DIR" ]; then
-    LOCK_DIR="`pwd`"
+if [ -z "$APP_NAME" ]; then
+	LOCK_FILE="$LOCK_DIR/lock"
+	UNLOCK_FILE="$LOCK_DIR/unlock"
+else
+	LOCK_FILE="$LOCK_DIR/$APP_NAME.lock"
+	UNLOCK_FILE="$LOCK_DIR/$APP_NAME.unlock"
 fi
 
-setLockFiles() {
-    if [ -z "$APP_NAME" ]; then
-        LOCK_FILE="$LOCK_DIR/lock"
-        UNLOCK_FILE="$LOCK_DIR/unlock"
-    else
-        LOCK_FILE="$LOCK_DIR/$APP_NAME.lock"
-        UNLOCK_FILE="$LOCK_DIR/$APP_NAME.unlock"
-    fi
-}
-
+# try to lock the application and exit if already locked
 lockApplication() {
 
-    setLockFiles
+	if [ -f "$LOCK_FILE" ]; then
+		echo "$APP_NAME won't start because $LOCK_FILE is present"
+		exit 1
+	fi
 
-    if [ -f "$LOCK_FILE" ]; then
-        echo "$APP_NAME won't start because $LOCK_FILE is present"
-        exit 1
-    fi
+	touch "$LOCK_FILE"
 
-    touch "$LOCK_FILE"
-
-    checkUnlock
+	checkUnlock
 }
 
+# smoothly unlock the application (but don't exit)
 unlockApplication() {
 
-    setLockFiles
-    checkLock
+	checkLock
 
-    unlink "$LOCK_FILE"
+	unlink "$LOCK_FILE"
 
-    if [ -f "$UNLOCK_FILE" ]; then
-        unlink "$UNLOCK_FILE"
-    fi
+	if [ -f "$UNLOCK_FILE" ]; then
+		unlink "$UNLOCK_FILE"
+	fi
 }
 
+# make sure the lock file is present, otherwise exit
 checkLock() {
 
-    setLockFiles
-
-    if [ ! -f "$LOCK_FILE" ]; then
-        echo "$APP_NAME's lock is gone! aborting!"
-        exit 3
-    fi
+	if [ ! -f "$LOCK_FILE" ]; then
+		echo "$APP_NAME's lock is gone! aborting!"
+		exit 3
+	fi
 }
 
+# check if .unlock is present and report
+shallUnlock() {
+
+	checkLock
+
+	if [ -f "$UNLOCK_FILE" ]; then
+		return 1
+	else
+		return 0
+	fi
+
+}
+
+# check if .unlock is present and abort (but remove .lock and .unlock)
+#  this should only be used when it is safe to abort (operations can be resumed later)
 checkUnlock() {
 
-    setLockFiles
-    checkLock
-
-    if [ -f "$UNLOCK_FILE" ]; then
-        echo "$UNLOCK_FILE file is present, aborting operations!"
-        rm "$UNLOCK_FILE" "$LOCK_FILE"
-        exit 2
-    fi
+	if [ shallUnlock ]; then
+		echo "$UNLOCK_FILE file is present, aborting operations!"
+		rm "$UNLOCK_FILE" "$LOCK_FILE"
+		exit 2
+	fi
 }
