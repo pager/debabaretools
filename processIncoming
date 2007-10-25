@@ -105,6 +105,13 @@ for CHANGES in $CURRENT_CHANGES; do
 		fi
 	fi
 
+	DISTRO="`egrep -m1 '^Distribution:[ \t]+([a-zA-Z0-9\-_]+)$' "$CHANGES" | cut -d: -f2 | sed 's/[ \t]//g'`"
+
+	if [ ! isDistroSupported "$DISTRO" ]; then
+		Say "$CHANGES is for the unsupported $DISTRO distribution!"
+		continue
+	fi
+
 	CHANGES=`basename "$CHANGES"`
 
 	OUTPUT="`(cd $UPLOADQUEUE; NOT_HUMAN=1 $CHECKSUMS "$CHANGES" VERBOSE )`"

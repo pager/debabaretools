@@ -54,12 +54,12 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "codenamesTable" "buildQueue" "setDefault" "verbosity"
+probeFile "lock" "startup" "codenamesTable" "buildQueue" "setDefault" "verbosity" "repository"
 
 setDefault "LOCK_DIR" "$BASE_DIR"
 setDefault "VERBOSE" "0"
 setDefault "INCOMING" "$BASE_DIR/incoming"
-setDefault "ACCEPTED" "$BASE_DIR/incoming/accepted"
+setDefault "ACCEPTED" "$INCOMING/accepted"
 setDefault "REPOSITORY" "$BASE_DIR/debian"
 
 lockApplication
@@ -111,7 +111,7 @@ for CHANGES in $ACCEPTED/*.changes; do
 	fi
 
 	if [ ! -z "$TO_BUILD_IN" ]; then
-		toBuild "$DISTRO" "$S_PACKAGE" "$PACKAGE_V" "$TO_BUILD_IN"
+		setToBuild "$DISTRO" "$S_PACKAGE" "$PACKAGE_V" "$TO_BUILD_IN"
 	fi
 
 done

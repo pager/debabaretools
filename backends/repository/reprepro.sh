@@ -159,3 +159,37 @@ repreproIsArchAll() {
 		return 0
 	fi
 }
+
+#USAGE: isDistroSupported(distribution, [distributionsFile]): isDistroSupported "unstable";
+#. isDistroSupported "stable" "$HOME/reprepro/conf/distributions"
+isDistroSupported() {
+	local distributionsFile listedSuites distro suite
+
+	if [ -z "${1:-}" ]; then
+		Say "Please specify a distribution you want me to check!"
+		return 1
+	else
+		distro="${1:-}"
+	fi
+
+	if [ ! -z "${2:-}" ] && [ -f "${2:-}" ]; then
+		distributionsFile="${2:-}"
+	elif [ -f "$BASE_DIR/conf/incoming" ]; then
+		distributionsFile="$BASE_DIR/conf/distributions"
+	fi
+
+	if [ ! -f "$distributionsFile" ]; then
+		Say "Couldn't find reprepro's conf/distributions, how am I going to find out the available suites then?"
+		return 1
+	fi
+
+	listedSuites=`cat $distributionsFile | grep Suite | sort -ru | awk '-F: ' '{ print $2 }'`
+
+	for suite in $listedSuites; do
+		if [ "$suite" == "$distro" ]; then
+			return 1
+		fi
+	done
+
+	return 0
+}

@@ -21,7 +21,7 @@
 setDefault "needsBuild_dataDir" "$BASE_DIR/build/data"
 
 # toBuild(distro, package, packageVersion, arch): toBuild "sid" "libfoo" "1.0-1" "i386 amd64"
-toBuild() {
+setToBuild() {
 
 	if [ -z "${1:-}" ] || [ -z "${2:-}" ] || [ -z "${3:-}" ] || [ -z "${4:-}" ] || [ -z "$BUILDARCHS" ]; then
 		return 1
@@ -60,3 +60,7 @@ toBuild() {
 		sed --in-place "s/$sourcePackage|$i//;" "$needsBuild_dataDir/needsBuild.$CODENAME"
 	done
 }
+
+getToBuild() {
+}
+
