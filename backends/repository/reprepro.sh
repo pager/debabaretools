@@ -88,7 +88,7 @@ getArchsPackIsBuiltAInRepository() {
 	fi
 
 	local dbDir codename sourcePackage packageVersion
-	sourcePackage="${1:-}" packageVersion="${2:-}" codename="${3:-}"
+	sourcePackage="${1:-}"; packageVersion="${2:-}"; codename="${3:-}"
 
 	if [ ! -z "${4:-}" ] && [ -d "${4:-}" ]; then
 		dbDir="${4:-}"
@@ -137,7 +137,7 @@ repreproIsArchAll() {
 	fi
 
 	local dbDir codename sourcePackage packageVersion
-	package="${1:-}" packageVersion="${2:-}" codename="${3:-}"
+	package="${1:-}"; packageVersion="${2:-}"; codename="${3:-}"
 
 	if [ ! -z "${4:-}" ] && [ -d "${4:-}" ]; then
 		dbDir="${4:-}"
