@@ -24,11 +24,11 @@ parseChangesFile() {
     local L
     local RESULT
     
-    CONTENTS="`cat $CHANGES_FILE`"
+#     CONTENTS="`cat $CHANGES_FILE`"
     
-    for L in $CONTENTS; do
+#     for L in $CONTENTS; do
         
-    done
+#     done
     
 }
 

@@ -26,6 +26,7 @@
 if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
 fi
+set -e
 
 declare -r APP_NAME="wannaBuild"
 declare -r APP_VERSION="0.1"
@@ -66,6 +67,7 @@ setDefault "DEB_HOST_ARCH" "`dpkg-architecture -l | grep DEB_HOST_ARCH= | cut '-
 getSupportedRepDistros
 setDefault "DISTRO_TO_BUILD" "$SUPPORTED_DISTROS"
 
+setLockFiles
 lockApplication
 
 if verbose; then
@@ -76,7 +78,8 @@ set +e
 
 # getToBuild
 for DISTRO in $DISTRO_TO_BUILD; do
-	if [ ! isDistroSupported "$DISTRO" ]; then
+	isDistroSupported "$DISTRO"
+	if [ ! $? ]; then
 		continue
 	fi
 
@@ -116,7 +119,8 @@ for DISTRO in $DISTRO_TO_BUILD; do
         #
         # Check whether we are building binary-arch or also include indep
         #
-        if [ ! hasPendingArchAll "$DISTRO" "$S_PACKAGE" ]; then
+	hasPendingArchAll "$DISTRO" "$S_PACKAGE"
+        if [ ! $? ]; then
             PBUILDEROPTS+=' --binary-arch'
         else
             BUILDALL=1

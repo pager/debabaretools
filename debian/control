@@ -4,10 +4,19 @@ Priority: extra
 Maintainer: Raphael Geissert <atomo64@gmail.com>
 Build-Depends: debhelper (>= 5)
 Standards-Version: 3.7.2
+Vcs-Svn: https://neo.yahostme.com/svn/DeBaBaReTools/trunk/
+Vcs-Browser: https://neo.yahostme.com/svn/DeBaBaReTools/trunk/
 
 Package: debabaretools
 Architecture: all
 Depends: ${misc:Depends}, gpgv
-Recommends: bash, reprepro
+Recommends: reprepro
 Description: The Debian Bash-Based Repository Tools
- <insert long description, indented with spaces>
+ Set of scripts or "glues" between different builders and repository tools
+ in order to provide an automated repository system.
+ .
+ It is intended to hand over all the job to other tools but coordinates
+ the whole operation.
+ .
+ It is NOT a rewrite of a repository tool (i.e. reprepro, debarchiver), 
+ neither yet an other building tool (i.e. sbuild, pbuilder).

@@ -89,13 +89,13 @@ hasPendingArchAll() {
 	distro="${1:-}"; package="${2:-}"
 
 	if [ ! -f "$needsBuild_dataDir/needsBuild.$distro" ]; then
-		return 0
+		return 1
 	fi
 
 	if [ ! -z "`cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "$package|all|needsBuild"`" ]; then
-		return 1
-	else
 		return 0
+	else
+		return 1
 	fi
 }
 
@@ -130,12 +130,12 @@ isPackageKnownByNeedsBuild() {
 	distro="${1:-}"; package="${2:-}"
 
 	if [ ! -f "$needsBuild_dataDir/needsBuild.$distro" ]; then
-		return 0
+		return 1
 	fi
 
 	if [ ! -z "`cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "$package|.*|.*"`" ]; then
-		return 1
-	else
 		return 0
+	else
+		return 1
 	fi
 }

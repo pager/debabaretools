@@ -25,6 +25,7 @@ fi
 
 declare -r APP_NAME="processIncoming"
 declare -r APP_VERSION="0.1"
+set -e
 
 if [ -f "/etc/DeBaBaReTools/common.conf" ]; then
         . /etc/DeBaBaReTools/common.conf
@@ -50,20 +51,23 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "setDefault" "verbosity" "signature" "repository"
+probeFile "lock" "startup" "setDefault" "verbosity" "signature" "repository" "check" "parsers"
 
 setDefault "LOCK_DIR" "$BASE_DIR"
 setDefault "VERBOSE" "0"
 setDefault "UPLOADQUEUE" "$BASE_DIR/pub/UploadQueue"
 setDefault "INCOMING" "$BASE_DIR/incoming"
 setDefault "ACCEPTED" "$INCOMING/accepted"
+setDefault "NEW" "$INCOMING/new"
+setDefault "NEW_POLICY" "binary"
 setDefault "REJECTED" "$INCOMING/rejected"
 setDefault "REJECTED_POLICY" "move"
-setDefault "RECLAIMED_FILE" "$INCOMING/accepted/reclaimed"
+setDefault "RECLAIMED_FILE" "$ACCEPTED/reclaimed"
 setDefault "CHECK_SIGNATURE" "1"
 setDefault "KEYRING" "uploaders.gpg"
 setDefault "CHECKSUMS" "`which checkSums`"
 
+setLockFiles
 lockApplication
 
 if verbose; then
@@ -86,10 +90,16 @@ fi
 #
 
 CURRENT="`find "$UPLOADQUEUE" -maxdepth 1 -type f`"
-CURRENT_CHANGES="`echo "$CURRENT" | egrep ".*\.changes$"`"
+if [ ! -z "$CURRENT" ]; then
+	CURRENT_CHANGES="`echo "$CURRENT" | egrep ".*\.changes$"`"
+else
+	CURRENT_CHANGES=
+fi
+
+touch "$RECLAIMED_FILE"
 
 for CHANGES in $CURRENT_CHANGES; do
-	if [ shallUnlock ]; then
+	if shallUnlock; then
 		unlink "$RECLAIMED_FILE"
 		checkUnlock
 	fi
@@ -98,6 +108,8 @@ for CHANGES in $CURRENT_CHANGES; do
 		continue
 	fi
 
+	Say "Processing $CHANGES..."
+
 	if [ "$CHECK_SIGNATURE" -eq 1 ]; then
 		checkSign "$CHANGES" "$KEYRING"
 		if [ "$?" != "0" ]; then
@@ -105,10 +117,11 @@ for CHANGES in $CURRENT_CHANGES; do
 		fi
 	fi
 
-	DISTRO="`egrep -m1 '^Distribution:[ \t]+([a-zA-Z0-9\-_]+)$' "$CHANGES" | cut -d: -f2 | sed 's/[ \t]//g'`"
+	getChangesEntry "$CHANGES" "Distribution"
 
-	if [ ! isDistroSupported "$DISTRO" ]; then
-		Say "$CHANGES is for the unsupported $DISTRO distribution!"
+	isDistroSupported "$DISTRIBUTION"
+	if [ ! $? ]; then
+		Say "$CHANGES is for the unsupported $DISTRIBUTION distribution!"
 		continue
 	fi
 
@@ -160,6 +173,16 @@ fi
 
 # Move the files to $ACCEPTED so they are processed by some other scripts
 for F in `cat "$RECLAIMED_FILE"`; do
+
+# 	if [ "$NEW_POLICY" == "binary" ] && hasNewBin "$F"; then
+# 		doNotOverwrite "$NEW/$F"
+# 		Say "mv'ing \"$UPLOADQUEUE/$F\" to \"$NEW/\""
+# 		mv "$UPLOADQUEUE/$F" "$NEW/"
+# 		continue
+# 	fi
+
+	doNotOverwrite "$ACCEPTED/$F"
+	Say "mv'ing \"$UPLOADQUEUE/$F\" to \"$ACCEPTED/\""
 	mv "$UPLOADQUEUE/$F" "$ACCEPTED/"
 done
 

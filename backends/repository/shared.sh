@@ -30,8 +30,8 @@ isArchSupportedIn() {
 
 	for a in $archsList; do
 		if [ "$a" == "$arch" ]; then
-			return 1
+			return 0
 		fi
 	done
-	return 0
+	return 1
 }

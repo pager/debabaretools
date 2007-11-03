@@ -19,7 +19,7 @@
 ####################
 
 # include some shared functions (not really dependent on the rep system)
-probe "repository/shared"
+probeFile "repository/shared"
 
 #USAGE: installIncoming([incomingFile]): toBuild; toBuild "$HOME/reprepro/conf/incoming"
 installIncoming() {
@@ -150,16 +150,16 @@ repreproIsArchAll() {
 
 	if [ ! -d "$dbDir" ]; then
 		Say "Couldn't find reprepro's db/, where is reprepro going to take the data from?"
-		return 1
+		return 2
 	fi
 
 	local queryResult
 	queryResult="`reprepro --dbdir "$dbDir" -T deb listfilter "$codename" "Package (==$package), Architecture (==all), Version (==$packageVersion)"`"
 
 	if [ ! -z "$queryResult" ]; then
-		return 1
-	else
 		return 0
+	else
+		return 1
 	fi
 }
 
@@ -183,18 +183,18 @@ isDistroSupported() {
 
 	if [ ! -f "$distributionsFile" ]; then
 		Say "Couldn't find reprepro's conf/distributions, how am I going to find out the available suites then?"
-		return 1
+		return 2
 	fi
 
 	listedSuites=`cat $distributionsFile | grep Suite | sort -ru | awk '-F: ' '{ print $2 }'`
 
 	for suite in $listedSuites; do
 		if [ "$suite" == "$distro" ]; then
-			return 1
+			return 0
 		fi
 	done
 
-	return 0
+	return 1
 }
 
 #USAGE: getSupportedRepDistros([distributionsFile]): getSupportedRepDistros;

@@ -18,13 +18,15 @@
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
 
-if [ -z "$APP_NAME" ]; then
-	LOCK_FILE="$LOCK_DIR/lock"
-	UNLOCK_FILE="$LOCK_DIR/unlock"
-else
-	LOCK_FILE="$LOCK_DIR/$APP_NAME.lock"
-	UNLOCK_FILE="$LOCK_DIR/$APP_NAME.unlock"
-fi
+setLockFiles() {
+	if [ -z "$APP_NAME" ]; then
+		LOCK_FILE="$LOCK_DIR/lock"
+		UNLOCK_FILE="$LOCK_DIR/unlock"
+	else
+		LOCK_FILE="$LOCK_DIR/$APP_NAME.lock"
+		UNLOCK_FILE="$LOCK_DIR/$APP_NAME.unlock"
+	fi
+}
 
 # try to lock the application and exit if already locked
 lockApplication() {
@@ -66,9 +68,9 @@ shallUnlock() {
 	checkLock
 
 	if [ -f "$UNLOCK_FILE" ]; then
-		return 1
-	else
 		return 0
+	else
+		return 1
 	fi
 
 }
@@ -77,7 +79,7 @@ shallUnlock() {
 #  this should only be used when it is safe to abort (operations can be resumed later)
 checkUnlock() {
 
-	if [ shallUnlock ]; then
+	if shallUnlock; then
 		echo "$UNLOCK_FILE file is present, aborting operations!"
 		rm "$UNLOCK_FILE" "$LOCK_FILE"
 		exit 2

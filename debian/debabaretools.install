@@ -1,0 +1,8 @@
+backends/* usr/share/DeBaBaReTools/backends/
+needsReBuild usr/bin/
+wannaBuild usr/bin/
+needsBuild usr/bin/
+wannaUpload usr/bin/
+checkSums usr/bin/
+processIncoming usr/bin/
+wannaLock usr/bin/
