@@ -19,8 +19,6 @@
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
 
-## TODO: replace the usage of awk with cut where possible
-
 if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
 fi
@@ -54,7 +52,7 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "codenamesTable" "buildQueue" "setDefault" "verbosity" "repository"
+probeFile "lock" "startup" "codenamesTable" "buildQueue" "setDefault" "verbosity" "repository" "parsers"
 
 setDefault "LOCK_DIR" "$BASE_DIR"
 setDefault "VERBOSE" "0"
@@ -82,36 +80,55 @@ for CHANGES in $ACCEPTED/*.changes; do
 
 	CHANGES=`basename $CHANGES`
 
-	S_PACKAGE="`echo "$CHANGES" | awk -F_ '{ print $1 }'`_`echo "$CHANGES" | awk -F_ '{ print $2 }'`"
+	getChangesEntry "$ACCEPTED/$CHANGES" "Source"
+	getChangesEntry "$ACCEPTED/$CHANGES" "Version"
+	getChangesEntry "$ACCEPTED/$CHANGES" "Architecture"
+	getChangesEntry "$ACCEPTED/$CHANGES" "Distribution"
 
-	# if there's no source package, let's go to next .changes
+	S_PACKAGE="${SOURCE}_${VERSION}"
+
+	# retrieve the $CODENAME for $DISTRIBUTION
+	# TODO: possibly do this (distro<->codename) via the repository info
+	distroToCodename "$DISTRIBUTION"
+
+	for arc in $ARCHITECTURE; do
+		if [ [ "$a" == "source" ]; then
+			continue
+		fi
+
+		if [ "$a" == "all" ] || [ isArchSupportedIn "$arc" "$BUILDARCHS" ]; then
+			markAsBuilt "$CODENAME" "$S_PACKAGE" "$arc"
+		fi
+	done
+
 	## TODO: do not guess the .dsc file always is $ACCEPTED/$S_PACKAGE.dsc; better read from .changes
-	if [ ! -f "$ACCEPTED/$S_PACKAGE.dsc" ]; then
+	## NOTE: $DSC MUST be $S_PACKAGE.dsc for the other scripts to work :(
+	DSC="$S_PACKAGE.dsc"
+
+	# if there's no source package go to next .changes
+	if [ ! -f "$ACCEPTED/$DSC" ]; then
 		continue
 	fi
 
-	PACKAGE_V="`echo "$CHANGES" | awk -F_ '{ print $2 }'`"
+	# $ARCHITECTURE is refreshed from .dsc now
+	getDscEntry "$ACCEPTED/$DSC" "Architecture"
 
-	CHANGES_ARCH="`echo "$CHANGES" | awk -F_ '{ print $3 }' | awk -F. '{ print $1 }'`"
-
-	TO_BUILD_IN="`cat $ACCEPTED/$S_PACKAGE.dsc | grep Architecture: | awk '-F: ' '{ print $2 }'`"
-
-	DISTRO="`cat $ACCEPTED/$CHANGES | grep Distribution: | awk '-F: ' '{ print $2 }'`"
+	TO_BUILD_IN="$ARCHITECTURE"
 
 	if [ "$TO_BUILD_IN" = "any" ]; then
-		TO_BUILD_IN=$BUILDARCHS
+		TO_BUILD_IN="$BUILDARCHS"
 	else
 		_TO_BUILD_IN="$TO_BUILD_IN"
 		TO_BUILD_IN=
 		for a in ${_TO_BUILD_IN}; do
-			if [ "$a" == "all" ] || [ ! -z "`echo "$BUILDARCHS" | egrep "(^|[ ,]+)${a}([ ,]+|$)"`" ]; then
+			if [ "$a" == "all" ] || [ isArchSupportedIn "$a" "$BUILDARCHS" ]; then
 				TO_BUILD_IN+="$a "
 			fi
 		done
 	fi
 
 	if [ ! -z "$TO_BUILD_IN" ]; then
-		setToBuild "$DISTRO" "$S_PACKAGE" "$PACKAGE_V" "$TO_BUILD_IN"
+		setToBuild "$CODENAME" "$S_PACKAGE" "$PACKAGE_V" "$TO_BUILD_IN"
 	fi
 
 done

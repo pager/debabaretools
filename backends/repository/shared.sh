@@ -18,5 +18,20 @@
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
 
-setDefault "PBUILDER_CACHE" "/var/cache/pbuilder"
-setDefault "UPDATE_TGZ" "1"
+#USAGE: isArchSupportedIn(arch, archsList): isArchSupportedIn "i386" "amd64 i386 sparc"
+isArchSupportedIn() {
+	if [ -z "${1:-}" ] || [ -z "${2:-}" ]; then
+		Say "We expected two arguments!"
+		return 2
+	fi
+
+	local arch archsList a
+	arch="${1:-}"; archsList="${2:-}";
+
+	for a in $archsList; do
+		if [ "$a" == "$arch" ]; then
+			return 1
+		fi
+	done
+	return 0
+}

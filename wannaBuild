@@ -19,6 +19,7 @@
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
 
+## NOTE: this script is currently broken!
 ## TODO: find a way to build when the source package is already installed in the repository
 ## TODO: ignore packages in failedToBuild.$DISTRO (should be manually removed from that file)
 
@@ -53,15 +54,17 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "setDefault" "verbosity"
+probeFile "lock" "startup" "setDefault" "verbosity" "build"
 
 setDefault "LOCK_DIR" "$BASE_DIR"
 setDefault "VERBOSE" "0"
-setDefault "PBUILDER_CACHE" "/var/cache/pbuilder"
 setDefault "BUILD_DIR" "$BASE_DIR/build"
 setDefault "BUILD_DATA" "$BUILD_DIR/data"
-setDefault "UPDATE_TGZ" "1"
 setDefault "GAINROOT" "sudo"
+setDefault "DEB_HOST_ARCH" "`dpkg-architecture -l | grep DEB_HOST_ARCH= | cut '-d=' -f2-`"
+
+getSupportedRepDistros
+setDefault "DISTRO_TO_BUILD" "$SUPPORTED_DISTROS"
 
 lockApplication
 
@@ -71,47 +74,41 @@ fi
 
 set +e
 
-for LIST in $BUILD_DATA/*; do
-    if [ ! -f $LIST ]; then
-        continue
-    fi
-
-    checkUnlock
-
-    DISTRO="`echo "$LIST" | awk -F. '{ print $2 }'`"
-
-    Say "Processing packages to be built for $DISTRO"
-
-    if [ $UPDATE_TGZ -gt 0 ]; then
-        Say "Executing pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz"
-        
-        $GAINROOT pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz > $BUILD_DIR/logs/${DISTRO}.update
-    else
-        Say "Not updating ${PBUILDER_CACHE}/${DISTRO}.tgz, as requested"
-    fi
-
-    for PACKAGE_L in `cat $LIST`; do
-        S_PACKAGE="`echo "$PACKAGE_L" | awk '-F|' '{ print $1 }'`"
-        Arch="`echo "$PACKAGE_L" | awk '-F|' '{ print $2 }'`"
+# getToBuild
+for DISTRO in $DISTRO_TO_BUILD; do
+	if [ ! isDistroSupported "$DISTRO" ]; then
+		continue
+	fi
 
 	checkUnlock
 
-        Say  "\tProcessing source package $S_PACKAGE"
+	Say "Processing packages to be built for $DISTRO"
 
-        if [ "$Arch" != "${DEB_BUILD_ARCH}" ]; then
-            Say  "\tIgnoring entry: $PACKAGE_L (not a good arch)"
-            continue
-        fi
+	if [ $UPDATE_TGZ -gt 0 ]; then
+		Say "Executing $GAINROOT pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz"
 
-        if [ ! -f "${ACCEPTED}/${S_PACKAGE}.dsc" ]; then
-            Say "\tRemoving entry: $PACKAGE_L (file not found)"
+		$GAINROOT pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz > $BUILD_DIR/logs/${DISTRO}.update
+	else
+		Say "Not updating ${PBUILDER_CACHE}/${DISTRO}.tgz, as requested"
+	fi
+
+	getToBuild "$DISTRO" "$DEB_HOST_ARCH"
+	for S_PACKAGE in $TOBUILD; do
+
+	checkUnlock
+
+	Say  "\tProcessing source package $S_PACKAGE"
+
+	# fetchSource "$S_PACKAGE"
+	if [ ! -f "${ACCEPTED}/${S_PACKAGE}.dsc" ]; then
+# 		Say "\tRemoving entry: $S_PACKAGE (file not found)"
             
-            sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
-            sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
+            # foobarmoo
+            #sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
+            #sed --in-place "s/${S_PACKAGE}|all|needsBuild//;" $BUILD_DATA/needsBuild.${DISTRO}
             continue
         fi
 
-        #BUILDOPTS="-a${DEB_BUILD_ARCH} -t${DEB_BUILD_GNU_TYPE} -b"
         BUILDOPTS=""
         PBUILDEROPTS=""
         BUILDALL=0
@@ -119,7 +116,7 @@ for LIST in $BUILD_DATA/*; do
         #
         # Check whether we are building binary-arch or also include indep
         #
-        if [ -z "`cat $LIST | grep "$S_PACKAGE|all"`" ]; then
+        if [ ! hasPendingArchAll "$DISTRO" "$S_PACKAGE" ]; then
             PBUILDEROPTS+=' --binary-arch'
         else
             BUILDALL=1

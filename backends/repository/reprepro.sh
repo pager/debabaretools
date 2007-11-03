@@ -18,6 +18,9 @@
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
 
+# include some shared functions (not really dependent on the rep system)
+probe "repository/shared"
+
 #USAGE: installIncoming([incomingFile]): toBuild; toBuild "$HOME/reprepro/conf/incoming"
 installIncoming() {
 	local incomingFile rulesets rule OUTPUT
@@ -83,7 +86,7 @@ getSupportedRepArchs() {
 getArchsPackIsBuiltAInRepository() {
 
 	if [ -z "${1:-}" ] || [ -z "${2:-}" ] || [ -z "${3:-}" ]; then
-		Say "Wrong function usage! we expected three parameters"
+		Say "Wrong function usage! we expected three arguments"
 		return 2
 	fi
 
@@ -132,7 +135,7 @@ getArchsPackIsBuiltAInRepository() {
 repreproIsArchAll() {
 
 	if [ -z "${1:-}" ] || [ -z "${2:-}" ] || [ -z "${3:-}" ]; then
-		Say "Wrong function usage! we expected three parameters"
+		Say "Wrong function usage! we expected three arguments"
 		return 2
 	fi
 
@@ -192,4 +195,26 @@ isDistroSupported() {
 	done
 
 	return 0
+}
+
+#USAGE: getSupportedRepDistros([distributionsFile]): getSupportedRepDistros;
+#. getSupportedRepDistros "$HOME/reprepro/conf/distributions"
+getSupportedRepDistros() {
+	local distributionsFile listedSuites suite
+
+	if [ ! -z "${1:-}" ] && [ -f "${1:-}" ]; then
+		distributionsFile="${1:-}"
+	elif [ -f "$BASE_DIR/conf/incoming" ]; then
+		distributionsFile="$BASE_DIR/conf/distributions"
+	fi
+
+	if [ ! -f "$distributionsFile" ]; then
+		Say "Couldn't find reprepro's conf/distributions, how am I going to find out the available suites then?"
+		return 1
+	fi
+
+	listedSuites=`cat $distributionsFile | grep Suite | sort -ru | awk '-F: ' '{ print $2 }'`
+
+	# make public the information:
+	SUPPORTED_DISTROS="$listedSuites"
 }

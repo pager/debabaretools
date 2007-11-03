@@ -19,21 +19,25 @@
 ####################
 
 distroToCodename() {
-    # make sure we always set something:
-    CODENAME="$DISTRO"
+	local distro="${1:-}"
 
-    if [ "$DISTRO" = "stable" ]; then CODENAME=etch; fi
-    if [ "$DISTRO" = "oldstable" ]; then CODENAME=sarge; fi
-    if [ "$DISTRO" = "testing" ]; then CODENAME=lenny; fi
-    if [ "$DISTRO" = "unstable" ]; then CODENAME=sid; fi
+	# make sure we always set something:
+	CODENAME="$distro"
+
+	if [ "$distro" = "stable" ]; then CODENAME=etch; fi
+	if [ "$distro" = "oldstable" ]; then CODENAME=sarge; fi
+	if [ "$distro" = "testing" ]; then CODENAME=lenny; fi
+	if [ "$distro" = "unstable" ]; then CODENAME=sid; fi
 }
 
 codenameToDistro() {
-    # make sure we always set something:
-    DISTRO="$CODENAME"
+	local codename="${1:-}"
 
-    if [ "$CODENAME" = "etch" ]; then DISTRO=stable; fi
-    if [ "$CODENAME" = "sarge" ]; then DISTRO=oldstable; fi
-    if [ "$CODENAME" = "lenny" ]; then DISTRO=testing; fi
-    if [ "$CODENAME" = "sid" ]; then DISTRO=unstable; fi
+	# make sure we always set something:
+	DISTRO="$codename"
+
+	if [ "$codename" = "etch" ]; then DISTRO=stable; fi
+	if [ "$codename" = "sarge" ]; then DISTRO=oldstable; fi
+	if [ "$codename" = "lenny" ]; then DISTRO=testing; fi
+	if [ "$codename" = "sid" ]; then DISTRO=unstable; fi
 }

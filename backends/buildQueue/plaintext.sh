@@ -20,18 +20,16 @@
 
 setDefault "needsBuild_dataDir" "$BASE_DIR/build/data"
 
-# toBuild(distro, package, packageVersion, arch): toBuild "sid" "libfoo" "1.0-1" "i386 amd64"
+#USAGE: setToBuild(distro, package, packageVersion, arch): toBuild "unstable" "libfoo" "1.0-1" "i386 amd64"
 setToBuild() {
 
 	if [ -z "${1:-}" ] || [ -z "${2:-}" ] || [ -z "${3:-}" ] || [ -z "${4:-}" ] || [ -z "$BUILDARCHS" ]; then
+		Say "We expected four arguments and \$BUILDARCHS to be set!"
 		return 1
 	fi
 
 	local distro sourcePackage packageVersion architecture
 	distro="${1:-}"; sourcePackage="${2:-}"; packageVersion="${3:-}"; toBuildIn="${4:-}"
-
-	# we retrieve the codename and use it for everything rather than the distribution name
-	DISTRO="$distro" distroToCodename
 
 	local ARCH
 
@@ -40,27 +38,104 @@ setToBuild() {
 			continue
 		fi
 
-		echo "$sourcePackage|$ARCH" >> $needsBuild_dataDir/needsBuild.$CODENAME
-		Say "\tAdding $sourcePackage to be built in $ARCH for the $CODENAME distribution"
+		if [ ! isPackageKnownByNeedsBuild "$distro" "$sourcePackage" ]; then
+			echo "$sourcePackage|$ARCH|needsBuild" >> "$needsBuild_dataDir/needsBuild.$distro"
+			Say "\tAdding $sourcePackage to be built in $ARCH for the $distro distribution"
+		else
+			Say "\tNOT Adding $sourcePackage to be built in $ARCH for the $distro distribution (already listed)"
+		fi
 	done
-
-	# Remove dups
-	cat "$needsBuild_dataDir/needsBuild.$CODENAME" | sort -u > "$needsBuild_dataDir/needsBuild.$CODENAME"
 
 	local EXISTING ALREADY_BUILT_IN i
 
-	# Find existing packages 
-	# TODO: check for the existence of already built but not installed!
-	getArchsPackIsBuiltAInRepository "$sourcePackage" "$packageVersion" "$CODENAME"
+	# Find existing packages
+	getArchsPackIsBuiltAInRepository "$sourcePackage" "$packageVersion" "$distro"
 
 	for i in $ALREADY_BUILT_IN; do
 		if [ -z "$i" ]; then
 			continue
 		fi
-		sed --in-place "s/$sourcePackage|$i//;" "$needsBuild_dataDir/needsBuild.$CODENAME"
+		sed --in-place "s/$sourcePackage|$i//;" "$needsBuild_dataDir/needsBuild.$distro"
 	done
 }
 
+#USAGE: getToBuild(distro, arch): getToBuild "unstable" "i386"
 getToBuild() {
+	if [ -z "${1:-}" ] || [ -z "${2:-}" ]; then
+		Say "We expected two arguments!"
+		return 1
+	fi
+
+	TOBUILD=
+
+	local distro arch
+	distro="${1:-}"; arch="${2:-}"
+
+	if [ ! -f "$needsBuild_dataDir/needsBuild.$distro" ]; then
+		return
+	fi
+
+	TOBUILD="`cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "([^|]+)|$arch|needsBuild" | cut '-d|' -f1`"
 }
 
+#USAGE: hasPendingArchAll(distro, package): hasPendingArchAll "unstable" "foo_1.1-1"
+hasPendingArchAll() {
+	if [ -z "${1:-}" ] || [ -z "${2:-}" ]; then
+		Say "We expected two arguments!"
+		return 2
+	fi
+
+	local distro package
+	distro="${1:-}"; package="${2:-}"
+
+	if [ ! -f "$needsBuild_dataDir/needsBuild.$distro" ]; then
+		return 0
+	fi
+
+	if [ ! -z "`cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "$package|all|needsBuild"`" ]; then
+		return 1
+	else
+		return 0
+	fi
+}
+
+#USAGE: markAsBuilt(distro, package, arch): markAsBuilt "unstable" "foo_1.1-1" "i386"
+markAsBuilt() {
+	if [ -z "${1:-}" ] || [ -z "${2:-}" ] || [ -z "${3:-}" ]; then
+		Say "We expected three arguments!"
+		return 1
+	fi
+
+	local distro package arch
+	distro="${1:-}"; package="${2:-}"; arch="${3:-}"
+
+	if [ ! -f "$needsBuild_dataDir/needsBuild.$distro" ]; then
+		return 1
+	fi
+
+	# remove any possible existing entry:
+	sed -i "$needsBuild_dataDir/needsBuild.$distro" "s/$package|$arch|.*//"
+
+	echo "$package|$arch|built" >> "$needsBuild_dataDir/needsBuild.$distro"
+}
+
+#USAGE: isPackageKnownByNeedsBuild(distro, package): isPackageKnownByNeedsBuild "unstable" "foo_1.1-1"
+isPackageKnownByNeedsBuild() {
+	if [ -z "${1:-}" ] || [ -z "${2:-}" ]; then
+		Say "We expected two arguments!"
+		return 2
+	fi
+
+	local distro package
+	distro="${1:-}"; package="${2:-}"
+
+	if [ ! -f "$needsBuild_dataDir/needsBuild.$distro" ]; then
+		return 0
+	fi
+
+	if [ ! -z "`cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "$package|.*|.*"`" ]; then
+		return 1
+	else
+		return 0
+	fi
+}
