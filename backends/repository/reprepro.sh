@@ -33,21 +33,25 @@ installIncoming() {
 
 	if [ ! -f "$incomingFile" ]; then
 		Say "Couldn't find reprepro's conf/incoming, how am I going to processincoming then?"
-		return 1
+		return 2
 	fi
 
 	rulesets="`cat "$incomingFile" | grep "Name:" | sed "s/[ \t]*Name:[ \t]*//gi" | sort -u`"
 
 	if [ -z "$rulesets" ]; then
 		Say "Couldn't find any ruleset in $incomingFile"
-		return 1
+		return 3
 	fi
 
 	for rule in $rulesets; do
-		OUTPUT="`reprepro processincoming "$rule"`"
-		if [ "$?" != "0" ]; then
+		if OUTPUT="`reprepro processincoming "$rule"`"; then
 			Say "$OUTPUT"
-			return "$?"
+			true
+		else
+			[ -z "$OUTPUT" ] || Say "$OUTPUT"
+			# We don't return because if a .changes doesn't match an specific rule 
+			# reprepro complains about it (but the file might be accepted by an other rule)
+			#return "$?"
 		fi
 	done
 }
@@ -65,10 +69,10 @@ getSupportedRepArchs() {
 
 	if [ ! -f "$distributionsFile" ]; then
 		Say "Couldn't find reprepro's conf/distributions, how am I going to find out the supported archs then?"
-		return 1
+		return 2
 	fi
 
-	listedArchs=`cat $distributionsFile | grep Architectures | sort -ru | awk '-F: ' '{ print $2 }'`
+	listedArchs=`cat $distributionsFile | grep Architectures: | sort -ru | awk '-F: ' '{ print $2 }'`
 
 	for ARCH in $listedArchs; do
 		if [ "$ARCH" != "source" ]; then
@@ -101,7 +105,7 @@ getArchsPackIsBuiltAInRepository() {
 
 	if [ ! -d "$dbDir" ]; then
 		Say "Couldn't find reprepro's db/, where is reprepro going to take the data from?"
-		return 1
+		return 2
 	fi
 
 	local queryResult alreadyBuiltIn p ARCH queryArchsOnly queryPackagesOnly
@@ -117,7 +121,7 @@ getArchsPackIsBuiltAInRepository() {
 	done
 
 	for p in $queryPackagesOnly; do
-		if [ repreproIsArchAll "$p" "$packageVersion" "$codename" "$dbDir" ]; then
+		if repreproIsArchAll "$p" "$packageVersion" "$codename" "$dbDir"; then
 			# if one of the arch-indep packages is found, all the other arch-indep
 			#  should also be there
 			alreadyBuiltIn+="all"
@@ -156,11 +160,8 @@ repreproIsArchAll() {
 	local queryResult
 	queryResult="`reprepro --dbdir "$dbDir" -T deb listfilter "$codename" "Package (==$package), Architecture (==all), Version (==$packageVersion)"`"
 
-	if [ ! -z "$queryResult" ]; then
-		return 0
-	else
-		return 1
-	fi
+	[ ! -z "$queryResult" ]
+	return
 }
 
 #USAGE: isDistroSupported(distribution, [distributionsFile]): isDistroSupported "unstable";
@@ -170,7 +171,7 @@ isDistroSupported() {
 
 	if [ -z "${1:-}" ]; then
 		Say "Please specify a distribution you want me to check!"
-		return 1
+		return 2
 	else
 		distro="${1:-}"
 	fi
@@ -186,21 +187,21 @@ isDistroSupported() {
 		return 2
 	fi
 
-	listedSuites=`cat $distributionsFile | grep Suite | sort -ru | awk '-F: ' '{ print $2 }'`
+	listedSuites=`cat $distributionsFile | grep Suite: | sort -ru | awk '-F: ' '{ print $2 }'`
 
 	for suite in $listedSuites; do
 		if [ "$suite" == "$distro" ]; then
-			return 0
+			return
 		fi
 	done
 
-	return 1
+	false
 }
 
 #USAGE: getSupportedRepDistros([distributionsFile]): getSupportedRepDistros;
 #. getSupportedRepDistros "$HOME/reprepro/conf/distributions"
 getSupportedRepDistros() {
-	local distributionsFile listedSuites suite
+	local distributionsFile listedSuites
 
 	if [ ! -z "${1:-}" ] && [ -f "${1:-}" ]; then
 		distributionsFile="${1:-}"
@@ -210,11 +211,33 @@ getSupportedRepDistros() {
 
 	if [ ! -f "$distributionsFile" ]; then
 		Say "Couldn't find reprepro's conf/distributions, how am I going to find out the available suites then?"
-		return 1
+		return 2
 	fi
 
-	listedSuites=`cat $distributionsFile | grep Suite | sort -ru | awk '-F: ' '{ print $2 }'`
+	listedSuites=`cat $distributionsFile | grep Suite: | sort -ru | awk '-F: ' '{ print $2 }'`
 
 	# make public the information:
 	SUPPORTED_DISTROS="$listedSuites"
+}
+
+#USAGE: getSupportedRepCodenames([distributionsFile]): getSupportedRepCodenames;
+#. getSupportedRepCodenames "$HOME/reprepro/conf/distributions"
+getSupportedRepCodenames() {
+	local distributionsFile listedCodenames
+
+	if [ ! -z "${1:-}" ] && [ -f "${1:-}" ]; then
+		distributionsFile="${1:-}"
+	elif [ -f "$BASE_DIR/conf/incoming" ]; then
+		distributionsFile="$BASE_DIR/conf/distributions"
+	fi
+
+	if [ ! -f "$distributionsFile" ]; then
+		Say "Couldn't find reprepro's conf/distributions, how am I going to find out the available suites then?"
+		return 2
+	fi
+
+	listedCodenames=`cat $distributionsFile | grep Codename: | sort -ru | awk '-F: ' '{ print $2 }'`
+
+	# make public the information:
+	SUPPORTED_CODENAMES="$listedCodenames"
 }

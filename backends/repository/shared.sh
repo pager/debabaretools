@@ -30,8 +30,23 @@ isArchSupportedIn() {
 
 	for a in $archsList; do
 		if [ "$a" == "$arch" ]; then
-			return 0
+			return
 		fi
 	done
-	return 1
+	false
+}
+
+
+#USAGE: moveToIncoming(files[, files[, files[, ...]]]): moveToIncoming "foo_1.0-1_source.changes"
+moveToIncoming() {
+	if [ -z "${1:-}" ]; then
+		Say "We expected at least one argument!"
+		return 2
+	fi
+
+	for f in $@; do
+		doNotOverwrite "$INCOMING/`basename "$f"`"
+		Say "mv'ing \"$f\" to \"$INCOMING\""
+		mv "$f" "$INCOMING/"
+	done
 }

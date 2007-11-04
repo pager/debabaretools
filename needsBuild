@@ -23,8 +23,6 @@ if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
 fi
 
-set -e
-
 declare -r APP_NAME="needsBuild"
 declare -r APP_VERSION="0.2"
 set -e
@@ -53,7 +51,7 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "setDefault ""codenamesTable" "buildQueue" "verbosity" "repository" "parsers"
+probeFile "lock" "verbosity" "misc" "setDefault ""codenamesTable" "buildQueue" "repository" "parsers" "check"
 
 setDefault "LOCK_DIR" "$BASE_DIR"
 setDefault "VERBOSE" "0"
@@ -71,6 +69,9 @@ if verbose; then
 	Say "Architectures: ${BUILDARCHS}all"
 fi
 
+getSupportedRepCodenames
+initBuildQueue "" "${SUPPORTED_CODENAMES}"
+
 for CHANGES in $ACCEPTED/*.changes; do
 	if [ ! -f $CHANGES ]; then
 		continue
@@ -87,28 +88,30 @@ for CHANGES in $ACCEPTED/*.changes; do
 	getChangesEntry "$ACCEPTED/$CHANGES" "Architecture"
 	getChangesEntry "$ACCEPTED/$CHANGES" "Distribution"
 
-	S_PACKAGE="${SOURCE}_${VERSION}"
-
 	# retrieve the $CODENAME for $DISTRIBUTION
 	# TODO: possibly do this (distro<->codename) via the repository info
 	distroToCodename "$DISTRIBUTION"
 
+	hasSourcePackage=0
 	for arc in $ARCHITECTURE; do
-		if [ "$a" == "source" ]; then
+		if [ "$arc" == "source" ]; then
+			hasSourcePackage=1
 			continue
 		fi
 
-		if [ "$a" == "all" ] || isArchSupportedIn "$arc" "$BUILDARCHS"; then
-			markAsBuilt "$CODENAME" "$S_PACKAGE" "$arc"
+		if [ "$arc" == "all" ] || isArchSupportedIn "$arc" "$BUILDARCHS"; then
+			markAsBuilt "$CODENAME" "$SOURCE" "$VERSION" "$arc"
 		fi
 	done
 
-	## TODO: do not guess the .dsc file always is $ACCEPTED/$S_PACKAGE.dsc; better read from .changes
-	## NOTE: $DSC MUST be $S_PACKAGE.dsc for the other scripts to work :(
-	DSC="$S_PACKAGE.dsc"
+	## TODO: do not guess the .dsc file always is $ACCEPTED/${SOURCE}_${VERSION}.dsc; better read from .changes
+	## NOTE: $DSC MUST be ${SOURCE}_${VERSION}.dsc for the other scripts to work :(
+	DSC="${SOURCE}_${VERSION}.dsc"
 
 	# if there's no source package go to next .changes
-	if [ ! -f "$ACCEPTED/$DSC" ]; then
+	if [ $hasSourcePackage -eq 0 ] || [ ! -f "$ACCEPTED/$DSC" ]; then
+		getChangesFiles "$ACCEPTED/$CHANGES"
+		moveToIncoming "$CHANGES_FILES" "$ACCEPTED/$CHANGES"
 		continue
 	fi
 
@@ -130,11 +133,15 @@ for CHANGES in $ACCEPTED/*.changes; do
 	fi
 
 	if [ ! -z "$TO_BUILD_IN" ]; then
-		setToBuild "$CODENAME" "$S_PACKAGE" "$PACKAGE_V" "$TO_BUILD_IN"
+		setToBuild "$CODENAME" "$SOURCE" "$VERSION" "$TO_BUILD_IN"
+		getChangesFiles "$ACCEPTED/$CHANGES"
+		moveToIncoming "$CHANGES_FILES" "$ACCEPTED/$CHANGES"
 	fi
 
 done
 
+shutdownBuildQueue
+sayBye
 unlockApplication
 exit 0
 

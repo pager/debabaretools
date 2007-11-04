@@ -29,10 +29,10 @@ checkSign() {
 		opts+="--keyring "$k" "
 	done
 
-	output="`gpgv $opts --quiet "$file" 2>&1`"
-	if [ "$?" != "0" ]; then
+	if output="`gpgv $opts --quiet "$file" 2>&1`"; then
+		return
+	else
 		Say "$output"
-		return 1
+		false
 	fi
-	return 0
 }

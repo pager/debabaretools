@@ -55,7 +55,7 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "setDefault" "verbosity" "build"
+probeFile "lock" "verbosity" "misc" "setDefault" "build"
 
 setDefault "LOCK_DIR" "$BASE_DIR"
 setDefault "VERBOSE" "0"
@@ -74,12 +74,12 @@ if verbose; then
 	sayHello
 fi
 
-set +e
+initBuildQueue
 
-# getToBuild
 for DISTRO in $DISTRO_TO_BUILD; do
-	isDistroSupported "$DISTRO"
-	if [ ! $? ]; then
+	if isDistroSupported "$DISTRO"; then
+		true
+	else
 		continue
 	fi
 
@@ -87,104 +87,93 @@ for DISTRO in $DISTRO_TO_BUILD; do
 
 	Say "Processing packages to be built for $DISTRO"
 
-	if [ $UPDATE_TGZ -gt 0 ]; then
-		Say "Executing $GAINROOT pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz"
-
-		$GAINROOT pbuilder --update --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz > $BUILD_DIR/logs/${DISTRO}.update
-	else
-		Say "Not updating ${PBUILDER_CACHE}/${DISTRO}.tgz, as requested"
-	fi
-
 	getToBuild "$DISTRO" "$DEB_HOST_ARCH"
 	for S_PACKAGE in $TOBUILD; do
 
-	checkUnlock
+		checkUnlock
 
-	Say  "\tProcessing source package $S_PACKAGE"
+		Say  "\tProcessing source package $S_PACKAGE"
 
-	# fetchSource "$S_PACKAGE"
-	if [ ! -f "${ACCEPTED}/${S_PACKAGE}.dsc" ]; then
-# 		Say "\tRemoving entry: $S_PACKAGE (file not found)"
-            
-            # foobarmoo
-            #sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
-            #sed --in-place "s/${S_PACKAGE}|all|needsBuild//;" $BUILD_DATA/needsBuild.${DISTRO}
-            continue
-        fi
+		# fetchSource "$S_PACKAGE"
+		# wannaLock "$S_PACKAGE" "$DEB_HOST_ARCH" "installed"
 
-        BUILDOPTS=""
-        PBUILDEROPTS=""
-        BUILDALL=0
+		if [ ! -f "$ACCEPTED/${S_PACKAGE}.dsc" ]; then
+			continue
+		fi
 
-        #
-        # Check whether we are building binary-arch or also include indep
-        #
-	hasPendingArchAll "$DISTRO" "$S_PACKAGE"
-        if [ ! $? ]; then
-            PBUILDEROPTS+=' --binary-arch'
-        else
-            BUILDALL=1
-            Say "\t\tAlso going to build 'all'"
-        fi
+		# wannaLock "$S_PACKAGE" "$DEB_HOST_ARCH"
 
-        #
-        # Create a temp dir where the results are going to be placed after building
-        # TODO: fix this thing!!! pdebuilder should be called
-        RESULTSDIR=`mktemp -d -p $BUILD_DIR/ XXXXXXXXXXX` || exit 1
+		BUILDOPTS=""
+		PBUILDEROPTS=""
+		BUILDALL=0
 
-        Say "\t\tStarting pbuilder --build ${PBUILDEROPTS} --debbuildopts ${BUILDOPTS} --buildresult ${RESULTSDIR} --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz ${ACCEPTED}/${S_PACKAGE}.dsc"
+		# Check whether we are building binary-arch or also include indep
+		if hasPendingArchAll "$DISTRO" "$S_PACKAGE"; then
+			BUILDALL=1
+			Say "\t\tAlso going to build 'all'"
+		else
+			PBUILDEROPTS+=' --binary-arch'
+		fi
 
-        #
-        # Finally build
-        #  pdebuild/pbuilder options must be setup in the pbuilderrc file
-        #
-        $GAINROOT pbuilder --build ${PBUILDEROPTS} --debbuildopts "${BUILDOPTS}" --buildresult ${RESULTSDIR} --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz ${ACCEPTED}/${S_PACKAGE}.dsc > $BUILD_DIR/logs/$S_PACKAGE 2> $BUILD_DIR/logs/$S_PACKAGE.error
+		# Create a temp dir where the results are going to be placed after building
+		# TODO: fix this thing!!! pdebuilder should be called
+		RESULTSDIR=`mktemp -d -p $BUILD_DIR/ XXXXXXXXXXX` || exit 1
 
-        #
-        # Make sure we got something
-        #
+		Say "\t\tStarting pbuilder --build ${PBUILDEROPTS} --debbuildopts ${BUILDOPTS} --buildresult ${RESULTSDIR} --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz ${ACCEPTED}/${S_PACKAGE}.dsc"
 
-        if [ ! -f "${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes" ]; then
-            Say "\t\tCould not find ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes, build failed"
-            
-            echo "${PACKAGE_L}" >> $BUILD_DATA/failedToBuild.${DISTRO}
-            sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
-            sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
-            continue
-        fi
+		#
+		# Finally build
+		#  pdebuild/pbuilder options must be setup in the pbuilderrc file
+		#
+		$GAINROOT pbuilder --build ${PBUILDEROPTS} --debbuildopts "${BUILDOPTS}" --buildresult ${RESULTSDIR} --basetgz ${PBUILDER_CACHE}/${DISTRO}.tgz ${ACCEPTED}/${S_PACKAGE}.dsc > $BUILD_DIR/logs/$S_PACKAGE 2> $BUILD_DIR/logs/$S_PACKAGE.error
 
-        FILES="`cat ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes | egrep "[0-9a-f]{32} [0-9]+ [a-z]+ [a-z]+ .*\.deb" | sed "s/ /|/g;"`"
-        for FEntry in $FILES; do
-            if [ -z "$FEntry" ]; then
-                continue
-            fi
+		#
+		# Make sure we got something
+		#
 
-            F="`echo "$FEntry" | awk '-F|' '{ print $6 }'`"
+		if [ ! -f "${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes" ]; then
+			Say "\t\tCould not find ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes, build failed"
 
-            Say "\t\tInstalling ${RESULTSDIR}/$F in $INCOMING/${DISTRO}/"
+			echo "${PACKAGE_L}" >> $BUILD_DATA/failedToBuild.${DISTRO}
+			sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
+			sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
+			continue
+		fi
 
-            mv ${RESULTSDIR}/$F $INCOMING/${DISTRO}/
-        done
+		FILES="`cat ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes | egrep "[0-9a-f]{32} [0-9]+ [a-z]+ [a-z]+ .*\.deb" | sed "s/ /|/g;"`"
+		for FEntry in $FILES; do
+			if [ -z "$FEntry" ]; then
+				continue
+			fi
 
-        Say "\t\tInstalling ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes in $INCOMING/${DISTRO}/"
+			F="`echo "$FEntry" | awk '-F|' '{ print $6 }'`"
 
-        mv ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes $INCOMING/${DISTRO}/
+			Say "\t\tInstalling ${RESULTSDIR}/$F in $INCOMING/${DISTRO}/"
 
-        sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
-        sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
+			mv ${RESULTSDIR}/$F $INCOMING/${DISTRO}/
+		done
 
-        FilesInBuild="`ls ${RESULTSDIR}/*`"
-        Say "\t\tCleaning results directory (${RESULTSDIR}):"
+		Say "\t\tInstalling ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes in $INCOMING/${DISTRO}/"
 
-        for F in "$FilesInBuild"; do
-            F="${RESULTSDIR}/${F}"
-            Say "\t\trm -rf $F"
-            rm -rf $F
-        done
-        rm -rf ${RESULTSDIR}
+		mv ${RESULTSDIR}/${S_PACKAGE}_${Arch}.changes $INCOMING/${DISTRO}/
 
-    done
+		sed --in-place "s/${PACKAGE_L}//;" $BUILD_DATA/needsBuild.${DISTRO}
+		sed --in-place "s/${S_PACKAGE}|all//;" $BUILD_DATA/needsBuild.${DISTRO}
+
+		FilesInBuild="`ls ${RESULTSDIR}/*`"
+		Say "\t\tCleaning results directory (${RESULTSDIR}):"
+
+		for F in "$FilesInBuild"; do
+			F="${RESULTSDIR}/${F}"
+			Say "\t\trm -rf $F"
+			rm -rf $F
+		done
+		rm -rf ${RESULTSDIR}
+
+	done
 done
 
+shutdownBuildQueue
+sayBye
 unlockApplication
 exit 0

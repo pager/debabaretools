@@ -44,7 +44,7 @@ parseDscFile() {
 #USAGE: getChangesEntry(changesFile, entryName): getChangesEntry "foo_0.1-1_i386.changes" "Version"
 getChangesEntry() {
 	if [ -z "${1:-}" ] || [ -z "${2:-}" ]; then
-		Say "We expected two parameters!"
+		Say "We expected two arguments!"
 		return 1
 	fi
 
@@ -68,7 +68,7 @@ getChangesEntry() {
 #USAGE: getDscEntry(dscFile, entryName): getDscEntry "foo_0.1-1.dsc" "Version"
 getDscEntry() {
 	if [ -z "${1:-}" ] || [ -z "${2:-}" ]; then
-		Say "We expected two parameters!"
+		Say "We expected two arguments!"
 		return 1
 	fi
 
@@ -89,3 +89,40 @@ getDscEntry() {
 	eval "$var="`cat $file | grep -m1 $entry: | cut '-d:' -f2- | sed "s/^ //"`""
 }
 
+#USAGE: getChangesFiles(dscFile): getChangesFiles "foo_0.1-1.dsc"
+getChangesFiles() {
+	if [ -z "${1:-}" ]; then
+		Say "We expected one argument!"
+		return 1
+	fi
+
+	local file changesFiles dirname
+	file="${1:-}"
+
+	dirname="`dirname "$file"`"
+	changesFiles="`cat "$file" | egrep "[0-9a-f]{32} [0-9]+ [a-z]+ [a-z]+ .*" | cut '-d ' -f6- `"
+
+	CHANGES_FILES=
+	for f in $changesFiles; do
+		CHANGES_FILES+="$dirname/$f "
+	done
+}
+
+#USAGE: getDscFiles(dscFile): getDscFiles "foo_0.1-1.dsc"
+getDscFiles() {
+	if [ -z "${1:-}" ]; then
+		Say "We expected one argument!"
+		return 1
+	fi
+
+	local file dscFiles dirname
+	file="${1:-}"
+
+	dirname="`dirname "$file"`"
+	dscFiles="`cat "$file" | egrep "[0-9a-f]{32} [0-9]+ .*" | cut '-d ' -f4-`"
+
+	DSC_FILES=
+	for f in $dscFiles; do
+		DSC_FILES+="$dirname/$f "
+	done
+}

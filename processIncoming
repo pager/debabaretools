@@ -51,7 +51,7 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "setDefault" "verbosity" "signature" "repository" "check" "parsers"
+probeFile "lock" "verbosity" "misc" "setDefault" "signature" "repository" "check" "parsers"
 
 setDefault "LOCK_DIR" "$BASE_DIR"
 setDefault "VERBOSE" "0"
@@ -111,16 +111,20 @@ for CHANGES in $CURRENT_CHANGES; do
 	Say "Processing $CHANGES..."
 
 	if [ "$CHECK_SIGNATURE" -eq 1 ]; then
-		checkSign "$CHANGES" "$KEYRING"
-		if [ "$?" != "0" ]; then
-			exit 2
+		
+		if checkSign "$CHANGES" "$KEYRING"; then
+			true
+		else
+			# we skip it so it doesn't get added to the reclaimed file
+			continue
 		fi
 	fi
 
 	getChangesEntry "$CHANGES" "Distribution"
 
-	isDistroSupported "$DISTRIBUTION"
-	if [ ! $? ]; then
+	if isDistroSupported "$DISTRIBUTION"; then
+		true
+	else
 		Say "$CHANGES is for the unsupported $DISTRIBUTION distribution!"
 		continue
 	fi
@@ -130,7 +134,8 @@ for CHANGES in $CURRENT_CHANGES; do
 	OUTPUT="`(cd $UPLOADQUEUE; NOT_HUMAN=1 $CHECKSUMS "$CHANGES" VERBOSE )`"
 	if [ "$?" != "0" ]; then
 		Say "$OUTPUT"
-		exit 2
+		# we skip it so it doesn't get added to the reclaimed file
+		continue
 	fi
 
 	# We are still here: signature, file size and md5sums are all fine
@@ -154,16 +159,16 @@ if [ "$REJECTED_POLICY" == "kill" ]; then
 	# Kill them all!
 	if [ ! -z "$CURRENT" ]; then
 		for f in $CURRENT; do
-			Say "unlink'ing \"$UPLOADQUEUE/$f\""
-			unlink "$UPLOADQUEUE/$f"
+			Say "unlink'ing \"$f\""
+			unlink "$f"
 		done
 	fi
 elif [ "$REJECTED_POLICY" == "move" ]; then
 	# Move them all!
 	if [ ! -z "$CURRENT" ] && [ -d "$REJECTED" ]; then
 		for f in $CURRENT; do
-			Say "mv'ing \"$UPLOADQUEUE/$f\" to \"$REJECTED/\""
-			mv "$UPLOADQUEUE/$f" "$REJECTED/"
+			Say "mv'ing \"$f\" to \"$REJECTED/\""
+			mv "$f" "$REJECTED/"
 		done
 	fi
 else
@@ -194,5 +199,6 @@ checkUnlock
 # Already ready-to-be-installed packages, as simple as this:
 installIncoming
 
+sayBye
 unlockApplication
 exit 0

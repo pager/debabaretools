@@ -52,13 +52,14 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "startup" "codenamesTable" "setDefault" "buildQueue" "verbosity"
+probeFile "lock" "verbosity" "misc" "codenamesTable" "setDefault" "buildQueue"
 
 setDefault "LOCK_DIR" "$BASE_DIR"
 
 setLockFiles
 lockApplication
 
+sayBye
 unlockApplication
 exit 0
 

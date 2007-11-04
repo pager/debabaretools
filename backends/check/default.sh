@@ -22,7 +22,7 @@
 #USAGE: doNotOverwrite(file): doNotOverwrite "accepted/new_file"
 doNotOverwrite() {
 	if [ -z "${1:-}" ]; then
-		Say "We were expecting one parameter!"
+		Say "We expected one argument!"
 		return 2
 	fi
 
