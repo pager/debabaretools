@@ -20,12 +20,13 @@
 
 PROBE_DIRS="$BACKEND_DIR /usr/share/DeBaBaReTools/backends /usr/local/share/DeBaBaReTools/backends"
 
+#ENV: EXTRA_PROBE_DIRS: space-separated list of directories where backends should be looked for
 if [ ! -z "$EXTRA_PROBE_DIRS" ]; then
 	PROBE_DIRS="$EXTRA_PROBE_DIRS $PROBE_DIRS"
 fi
 
 probeFile() {
-	local f d succeeded
+	local f d succeeded h hints
 
 	if [ -z "${1:-}" ]; then
 		return 2
@@ -33,6 +34,8 @@ probeFile() {
 
 	for f in $@; do
 		succeeded=
+#ENV: HINT_$backend: space-separated list of hints used to pick the right backend (e.g. HINT_repository=reprepro)
+		hints="`eval "echo \\\$HINT_$f"` default"
 		for d in $PROBE_DIRS; do
 			if [ -f "$d/$f" ]; then
 				succeeded=1
@@ -44,10 +47,14 @@ probeFile() {
 				. "$d/$f.sh"
 				continue 2
 			fi
-			if [ -d "$d/$f" ] && [ -f "$d/$f/default.sh" ] ; then
-				succeeded=1
-				. "$d/$f/default.sh"
-				continue 2
+			if [ -d "$d/$f" ]; then
+                        	for h in $hints; do 
+					if [ -f "$d/$f/$h.sh" ]; then
+						succeeded=1
+						. "$d/$f/$h.sh"
+						continue 3
+					fi
+				done
 			fi
 		done
 
