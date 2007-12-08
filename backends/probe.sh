@@ -35,7 +35,8 @@ probeFile() {
 	for f in $@; do
 		succeeded=
 #ENV: HINT_$backend: space-separated list of hints used to pick the right backend (e.g. HINT_repository=reprepro)
-		hints="`eval "echo \\\$HINT_$f"` default"
+#ENV: HINT_ALL: space-separated list of hints used to pick the right backend affecting any file probing
+		hints="`eval "echo \\\$HINT_$f"` $HINT_ALL default"
 		for d in $PROBE_DIRS; do
 			if [ -f "$d/$f" ]; then
 				succeeded=1
