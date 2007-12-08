@@ -19,4 +19,51 @@
 ####################
 
 setDefault "PBUILDER_CACHE" "/var/cache/pbuilder"
-setDefault "UPDATE_TGZ" "1"
+
+#buildPackage "$dscURI" "$BUILD_TYPE" "$workingDir"
+buildPackage() {
+	if [ "$UPDATE_ENVIRONMENT" -gt 0 ]; then
+		updateTGZ
+	fi
+
+	local pbuilderopts dscURI="${1:-}" buildType="${2:-}" workingDir="${3:-}" distro="${4:-}" es
+
+	case $buildType in 
+		binary-arch)
+			pbuilderopts=' --binary-arch'
+		;;
+		binary-all)
+			pbuilderopts='--debbuildopts -b'
+		;;
+	esac
+
+	Say "\t\tStarting build process"
+
+	if ! $GAINROOT pbuilder --build $pbuilderopts --buildresult "$workingDir" \
+		--basetgz "${PBUILDER_CACHE}/$distro.tgz" "$workingDir/$dscURI" \
+		&> "$workingDir/$dscURI.build"; then
+			es=$?
+			Say "Build failed, cat "$workingDir/$dscURI.build" for more information"
+			return $es
+	fi
+}
+
+updateTGZ() {
+	local file output es
+
+	if [ ! -z "${1:-}" ] && [ -f "${PBUILDER_CACHE}/${1:-}.tgz" ]; then
+		file="${1:-}"
+	elif [ -f "${PBUILDER_CACHE}/${DISTRO}.tgz" ]; then
+		file="$DISTRO"
+	else
+		Say "err, what basetgz do you want me to update?"
+		return 1
+	fi
+	Say "\t\tExecuting $GAINROOT pbuilder --update --basetgz ${PBUILDER_CACHE}/$file.tgz"
+
+	if ! output="`$GAINROOT pbuilder --update --basetgz "${PBUILDER_CACHE}/$file.tgz" 2>&1`"; then
+		es=$?
+		Say "$output"
+		return $es
+	fi
+}
