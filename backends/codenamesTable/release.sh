@@ -1,4 +1,3 @@
-#!/bin/sh
 
 ####################
 #    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
@@ -18,3 +17,27 @@
 #    You should have received a copy of the GNU General Public License
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
+
+distroToCodename() {
+	local distro="${1:-}"
+
+	# make sure we always set something:
+	CODENAME="$distro"
+
+	if [ "$distro" = "stable" ]; then CODENAME=etch; fi
+	if [ "$distro" = "oldstable" ]; then CODENAME=sarge; fi
+	if [ "$distro" = "testing" ]; then CODENAME=lenny; fi
+	if [ "$distro" = "unstable" ]; then CODENAME=sid; fi
+}
+
+codenameToDistro() {
+	local codename="${1:-}"
+
+	# make sure we always set something:
+	DISTRO="$codename"
+
+	if [ "$codename" = "etch" ]; then DISTRO=stable; fi
+	if [ "$codename" = "sarge" ]; then DISTRO=oldstable; fi
+	if [ "$codename" = "lenny" ]; then DISTRO=testing; fi
+	if [ "$codename" = "sid" ]; then DISTRO=unstable; fi
+}

@@ -81,7 +81,7 @@ checkUnlock() {
 
 	if shallUnlock; then
 		echo "$UNLOCK_FILE file is present, aborting operations!"
-		rm "$UNLOCK_FILE" "$LOCK_FILE"
+		rm -f "$UNLOCK_FILE" "$LOCK_FILE"
 		exit 2
 	fi
 }
