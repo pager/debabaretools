@@ -10,7 +10,7 @@ Vcs-Browser: https://neo.yahostme.com/svn/DeBaBaReTools/trunk/
 Package: debabaretools
 Architecture: all
 Depends: ${misc:Depends}, gpgv
-Recommends: reprepro
+Recommends: reprepro, devscripts, sudo, dput
 Description: The Debian Bash-Based Repository Tools
  Set of scripts or "glues" between different builders and repository tools
  in order to provide an automated repository system.

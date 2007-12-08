@@ -89,7 +89,6 @@ for CHANGES in $ACCEPTED/*.changes; do
 	getChangesEntry "$ACCEPTED/$CHANGES" "Distribution"
 
 	# retrieve the $CODENAME for $DISTRIBUTION
-	# TODO: possibly do this (distro<->codename) via the repository info
 	distroToCodename "$DISTRIBUTION"
 
 	hasSourcePackage=0

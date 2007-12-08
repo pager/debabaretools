@@ -5,4 +5,4 @@ needsBuild usr/bin/
 wannaUpload usr/bin/
 checkSums usr/bin/
 processIncoming usr/bin/
-wannaLock usr/bin/
+buildQueue usr/bin/

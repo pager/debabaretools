@@ -112,9 +112,7 @@ for CHANGES in $CURRENT_CHANGES; do
 
 	if [ "$CHECK_SIGNATURE" -eq 1 ]; then
 		
-		if checkSign "$CHANGES" "$KEYRING"; then
-			true
-		else
+		if ! checkSign "$CHANGES" "$KEYRING"; then
 			# we skip it so it doesn't get added to the reclaimed file
 			continue
 		fi
@@ -122,9 +120,7 @@ for CHANGES in $CURRENT_CHANGES; do
 
 	getChangesEntry "$CHANGES" "Distribution"
 
-	if isDistroSupported "$DISTRIBUTION"; then
-		true
-	else
+	if ! isDistroSupported "$DISTRIBUTION"; then
 		Say "$CHANGES is for the unsupported $DISTRIBUTION distribution!"
 		continue
 	fi
