@@ -44,9 +44,8 @@ installIncoming() {
 	fi
 
 	for rule in $rulesets; do
-		if OUTPUT="`reprepro processincoming "$rule"`"; then
-			Say "$OUTPUT"
-			true
+		if OUTPUT="`reprepro processincoming "$rule" 2>&1`"; then
+			[ -z "$OUTPUT" ] || Say "$OUTPUT"
 		else
 			[ -z "$OUTPUT" ] || Say "$OUTPUT"
 			# We don't return because if a .changes doesn't match an specific rule 
@@ -191,6 +190,40 @@ isDistroSupported() {
 
 	for suite in $listedSuites; do
 		if [ "$suite" == "$distro" ]; then
+			return
+		fi
+	done
+
+	false
+}
+
+#USAGE: isCodenameSupported(codename, [distributionsFile]): isCodenameSupported "sid";
+#. isCodenameSupported "sid" "$HOME/reprepro/conf/distributions"
+isCodenameSupported() {
+	local distributionsFile listedSuites distro codename
+
+	if [ -z "${1:-}" ]; then
+		Say "Please specify a distribution you want me to check!"
+		return 2
+	else
+		suite="${1:-}"
+	fi
+
+	if [ ! -z "${2:-}" ] && [ -f "${2:-}" ]; then
+		distributionsFile="${2:-}"
+	elif [ -f "$BASE_DIR/conf/incoming" ]; then
+		distributionsFile="$BASE_DIR/conf/distributions"
+	fi
+
+	if [ ! -f "$distributionsFile" ]; then
+		Say "Couldn't find reprepro's conf/distributions, how am I going to find out the available suites then?"
+		return 2
+	fi
+
+	listedCodenames=`cat $distributionsFile | grep Codename: | sort -ru | awk '-F: ' '{ print $2 }'`
+
+	for codename in $listedSuites; do
+		if [ "$codename" == "$distro" ]; then
 			return
 		fi
 	done
