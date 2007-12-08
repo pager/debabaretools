@@ -48,14 +48,13 @@ fi
 # we first load the settings
 probeFile "config"
 
-cd "$BASE_DIR"
-
 # afterwards we load the rest
 probeFile "verbosity" "setDefault" "upload"
 
+setDefault "VERBOSE" "0"
 setDefault "CHECKSUMS" "`which checkSums`"
 
-if ! OUTPUT="`(cd "`dirname "$1"`"; NOT_HUMAN=1 $CHECKSUMS "$1" VERBOSE )`"; then
+if ! OUTPUT="`NOT_HUMAN=1 $CHECKSUMS "$1" VERBOSE`"; then
 	Say "$OUTPUT"
 	exit 1
 fi
