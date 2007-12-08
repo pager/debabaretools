@@ -131,10 +131,12 @@ for ENTRY in $CONTENTS; do
         FILE="`echo "$ENTRY" | awk '-F|' '{ print $4 }'`"
     fi
 
+    FULL_PATH2FILE="`readlink -f "$FILE"`"
+
     SIZE="`echo "$ENTRY" | awk '-F|' '{ print $3 }'`"
     MD5SUM="`echo "$ENTRY" | awk '-F|' '{ print $2 }'`"
     
-    if [ ! -f "$FILE" ]; then
+    if [ ! -f "$FULL_PATH2FILE" ]; then
         if [ $NOT_HUMAN ]; then
             echo "FE|$FILE"
         else
@@ -143,7 +145,7 @@ for ENTRY in $CONTENTS; do
         exit 2
     fi
     
-    RSIZE="`du -b "$FILE" | awk "-F " '{ print $1 }'`"
+    RSIZE="`du -b "$FULL_PATH2FILE" | awk "-F " '{ print $1 }'`"
     
     if [ "$RSIZE" != "$SIZE" ]; then
         if [ $NOT_HUMAN ]; then
@@ -154,7 +156,7 @@ for ENTRY in $CONTENTS; do
         exit 2
     fi
     
-    RMD5SUM="`md5sum "$FILE" | awk "-F " '{ print $1 }'`"
+    RMD5SUM="`md5sum "$FULL_PATH2FILE" | awk "-F " '{ print $1 }'`"
     
     if [ "$RMD5SUM" != "$MD5SUM" ]; then
         if [ $NOT_HUMAN ]; then
