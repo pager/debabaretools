@@ -24,7 +24,7 @@ if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
 fi
 set -e
 
-declare -r APP_NAME="wannaUpload"
+declare -r APP_NAME="buildQueue"
 declare -r APP_VERSION="0.1"
 
 if [ -f "/etc/DeBaBaReTools/common.conf" ]; then
@@ -51,13 +51,4 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "verbosity" "setDefault" "upload"
-
-setDefault "CHECKSUMS" "`which checkSums`"
-
-if ! OUTPUT="`(cd "`dirname "$1"`"; NOT_HUMAN=1 $CHECKSUMS "$1" VERBOSE )`"; then
-	Say "$OUTPUT"
-	exit 1
-fi
-
-uploadSource "$1"
+probeFile "lock" "verbosity" "misc" "setDefault" #"queue" "signature"

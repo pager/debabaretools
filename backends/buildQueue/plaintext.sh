@@ -18,6 +18,7 @@
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
 
+#ENV: needsBuild_dataDir: directory where the plaintext BuildQueue backend stores its information
 setDefault "needsBuild_dataDir" "$BASE_DIR/build/data"
 
 #USAGE: setToBuild(distro, package, packageVersion, arch): toBuild "unstable" "libfoo" "1.0-1" "i386 amd64"
@@ -41,8 +42,8 @@ setToBuild() {
 		if isPackageKnownByBuildQueue "$distro" "${package}_${version}" "$ARCH"; then
 			Say "\tNOT Adding $package to be built in $ARCH for the $distro distribution (already listed)"
 		else
-			echo "${package}_${version}|$ARCH|needsBuild" >> "$needsBuild_dataDir/needsBuild.$distro"
 			Say "\tAdding $package to be built in $ARCH for the $distro distribution"
+			echo "${package}_${version}|$ARCH|needsBuild" >> "$needsBuild_dataDir/needsBuild.$distro"
 		fi
 	done
 
@@ -67,8 +68,6 @@ getToBuild() {
 		return 2
 	fi
 
-	TOBUILD=
-
 	local distro arch
 	distro="${1:-}"; arch="${2:-}"
 
@@ -76,7 +75,7 @@ getToBuild() {
 		true
 	fi
 
-	TOBUILD="`cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "([^|]+)|$arch|needsBuild" | cut '-d|' -f1`"
+	cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "([^|]+)\|$arch\|needsBuild" | cut '-d|' -f1 || true
 }
 
 #USAGE: hasPendingArchAll(distro, package): hasPendingArchAll "unstable" "foo_1.1-1"
@@ -95,7 +94,7 @@ hasPendingArchAll() {
 
 	escapeForRegex "$package"
 
-	if [ ! -z "`cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "$ESCAPED|all|needsBuild"`" ]; then
+	if [ ! -z "`cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "$ESCAPED\|all\|needsBuild"`" ]; then
 		true
 	else
 		false
@@ -176,3 +175,12 @@ shutdownBuildQueue() {
 	# should be told to close the connection here (but don't forget to watch out for dead proc parent!)
 	true
 }
+
+parsePackageEntry() {
+	local pkg="`echo "${1:-}" | cut '-d|' -f1`"
+	package="`echo "$pkg" | cut -d_ -f1`"
+	version="`echo "$pkg" | cut -d_ -f2-`"
+#TODO: use a better way to find the path to the .dsc file in parsePackageEntry
+	dscURI="`find "$BASE_DIR" -name "$pkg.dsc" -print0 `" # | xargs -0 -r readlink -f`"
+}
+
