@@ -113,6 +113,7 @@ for CHANGES in $CURRENT_CHANGES; do
 	if [ "$CHECK_SIGNATURE" -eq 1 ]; then
 		
 		if ! checkSign "$CHANGES" "$KEYRING"; then
+			Say "\tNo valid signature found"
 			# we skip it so it doesn't get added to the reclaimed file
 			continue
 		fi

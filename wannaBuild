@@ -148,7 +148,7 @@ for DISTRO in $DISTROS_TO_BUILD; do
 		Say "\tStarting build backend..."
 		buildPackage "$dscName" "$BUILD_TYPE" "$workingDir" "$CODENAME"
 
-		CHANGES=$workingDir/*.changes
+		CHANGES="`echo "$workingDir"/*.changes`"
 
 		#
 		# Make sure we got something
@@ -176,7 +176,7 @@ for DISTRO in $DISTROS_TO_BUILD; do
 			fi
 		fi
 
-		BUILD_LOG=$workingDir/*.build
+		BUILD_LOG="`echo "$workingDir"/*.build`"
 
 		#
 		# Make sure we got something
