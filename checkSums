@@ -104,7 +104,7 @@ fi
 CONTENTS=
 
 if [ "$FORMAT" = "changes" ]; then
-    CONTENTS="`cat "$1" | egrep "[0-9a-f]{32} [0-9]+ [a-z]+ [a-z]+ .*" | sed "s/ /|/g;"`"
+    CONTENTS="`cat "$1" | egrep "[0-9a-f]{32} [0-9]+ [a-z0-9]+ [a-z]+ .*" | sed "s/ /|/g;"`"
 else
     CONTENTS="`cat "$1" | egrep "[0-9a-f]{32} [0-9]+ .*" | sed "s/ /|/g;"`"
 fi
