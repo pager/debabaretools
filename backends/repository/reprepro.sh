@@ -222,8 +222,8 @@ isCodenameSupported() {
 
 	listedCodenames=`cat $distributionsFile | grep Codename: | sort -ru | awk '-F: ' '{ print $2 }'`
 
-	for codename in $listedSuites; do
-		if [ "$codename" == "$distro" ]; then
+	for codename in $listedCodenames; do
+		if [ "$codename" == "$suite" ]; then
 			return
 		fi
 	done
