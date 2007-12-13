@@ -64,6 +64,7 @@ setDefault "REJECTED" "$INCOMING/rejected"
 setDefault "REJECTED_POLICY" "move"
 setDefault "RECLAIMED_FILE" "$ACCEPTED/reclaimed"
 setDefault "CHECK_SIGNATURE" "1"
+setDefault "INSTALL" "0"
 setDefault "KEYRING" "uploaders.gpg"
 setDefault "CHECKSUMS" "`which checkSums`"
 
@@ -193,8 +194,10 @@ unlink "$RECLAIMED_FILE"
 
 checkUnlock
 
-# Already ready-to-be-installed packages, as simple as this:
-installIncoming
+if [ "$INSTALL" -gt 0 ]; then
+	# Already ready-to-be-installed packages, as simple as this:
+	installIncoming
+fi
 
 sayBye
 unlockApplication
