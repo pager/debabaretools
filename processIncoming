@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ####################
-#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#    Copyright (C) 2007, 2008 by Raphael Geissert <atomo64@gmail.com>
 #
 #    This file is part of DeBaBaReTools
 #
@@ -66,7 +66,7 @@ setDefault "RECLAIMED_FILE" "$ACCEPTED/reclaimed"
 setDefault "CHECK_SIGNATURE" "1"
 setDefault "INSTALL" "0"
 setDefault "KEYRING" "uploaders.gpg"
-setDefault "CHECKSUMS" "`which checkSums`"
+setDefault "CHECKSUMS" "$(which checkSums)"
 
 setLockFiles
 lockApplication
@@ -92,7 +92,7 @@ fi
 
 CURRENT="`find "$UPLOADQUEUE" -maxdepth 1 -type f`"
 if [ ! -z "$CURRENT" ]; then
-	CURRENT_CHANGES="`echo "$CURRENT" | egrep ".*\.changes$"`"
+	CURRENT_CHANGES="$(echo "$CURRENT" | egrep ".*\.changes$")"
 else
 	CURRENT_CHANGES=
 fi
@@ -138,18 +138,17 @@ for CHANGES in $CURRENT_CHANGES; do
 
 	# We are still here: signature, file size and md5sums are all fine
 	# now let's add the files to the reclaimed file so they are not deleted
-	echo "$CHANGES" >> "$RECLAIMED_FILE"
 	for F in "$OUTPUT"; do
-		FILE="`echo "$F" | awk "-F|" '{ print $2 }'`"
-		echo "$FILE" >> "$RECLAIMED_FILE"
+		cut '-d|' -f2 <<< "$F" >> "$RECLAIMED_FILE"
 	done
 done
 
 # Remove duplicates (there shouldn't be any)
-cat "$RECLAIMED_FILE" | sort -u > "$RECLAIMED_FILE"
+RECLAIMED_LIST="$(cat "$RECLAIMED_FILE")"
+sort -u <<< "$RECLAIMED_LIST" > "$RECLAIMED_FILE"
 
 # Prepare list of files to be removed (not reclaimed by anyone)
-for F in `cat "$RECLAIMED_FILE"`; do
+for F in $(cat "$RECLAIMED_FILE"); do
 	CURRENT="`echo "$CURRENT" | sed "s#$UPLOADQUEUE/$F##"`"
 done
 
