@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ####################
-#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#    Copyright (C) 2007, 2008 by Raphael Geissert <atomo64@gmail.com>
 #
 #    This file is part of DeBaBaReTools
 #
@@ -103,9 +103,9 @@ for CHANGES in $ACCEPTED/*.changes; do
 		fi
 	done
 
-	## TODO: do not guess the .dsc file always is $ACCEPTED/${SOURCE}_${VERSION}.dsc; better read from .changes
-	## NOTE: $DSC MUST be ${SOURCE}_${VERSION}.dsc for the other scripts to work :(
-	DSC="${SOURCE}_${VERSION}.dsc"
+	DSC="$(egrep "[0-9a-f]{32} [0-9]+ [a-z0-9]+ [a-z]+ .*\.dsc" "$ACCEPTED/$CHANGES" | cut '-d ' -f6)"
+	## NOTE: $DSC MUST be ${SOURCE}_${VERSION}.dsc for the other scripts to work :( hence this dirty hack
+	[ "$DSC" = "${SOURCE}_${VERSION}.dsc" ] || DSC=$RANDOM$RANDOM$RANDOM
 
 	# if there's no source package go to next .changes
 	if [ $hasSourcePackage -eq 0 ] || [ ! -f "$ACCEPTED/$DSC" ]; then
