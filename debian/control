@@ -2,15 +2,15 @@ Source: debabaretools
 Section: admin
 Priority: extra
 Maintainer: Raphael Geissert <atomo64@gmail.com>
-Build-Depends: debhelper (>= 5)
-Standards-Version: 3.7.2
+Build-Depends: debhelper (>= 6)
+Standards-Version: 3.7.3
 Vcs-Svn: https://neo.yahostme.com/svn/DeBaBaReTools/trunk/
 Vcs-Browser: https://neo.yahostme.com/svn/DeBaBaReTools/trunk/
 
 Package: debabaretools
 Architecture: all
 Depends: ${misc:Depends}, gpgv
-Recommends: reprepro, devscripts, sudo, dput
+Recommends: reprepro, devscripts, sudo, dput, dctrl-tools
 Description: The Debian Bash-Based Repository Tools
  Set of scripts or "glues" between different builders and repository tools
  in order to provide an automated repository system.

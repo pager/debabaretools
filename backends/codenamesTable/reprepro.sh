@@ -1,6 +1,6 @@
 
 ####################
-#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#    Copyright (C) 2007, 2008 by Raphael Geissert <atomo64@gmail.com>
 #
 #    This file is part of DeBaBaReTools
 #
@@ -35,7 +35,11 @@ distroToCodename() {
 	# make sure we always set something:
 	CODENAME="$distro"
 
-	CODENAME="`cat conf/distributions | egrep -B2 -A2 "^Suite: $distro" | egrep "^Codename: " | cut -d: -f2 | sed 's/[ \t]//g'`"
+	if which grep-dctrl > /dev/null; then
+		CODENAME="$(grep-dctrl -n -X -FSuite "$distro" -sCodename "$distributionsFile")"
+	else
+		CODENAME="$(cat "$distributionsFile" | egrep -B2 -A2 "^Suite: $distro" | egrep "^Codename: " | cut -d: -f2 | sed 's/[ \t]//g')"
+	fi
 }
 
 codenameToDistro() {
@@ -55,5 +59,9 @@ codenameToDistro() {
 	# make sure we always set something:
 	DISTRO="$codename"
 
-	DISTRO="`cat conf/distributions | egrep -B2 -A2 "^Codename: $codename" | egrep "^Suite: " | cut -d: -f2 | sed 's/[ \t]//g'`"
+	if which grep-dctrl > /dev/null; then
+		DISTRO="$(grep-dctrl -n -X -FCodename "$codename" -sSuite "$distributionsFile")"
+	else
+		DISTRO="$(cat "$distributionsFile" | egrep -B2 -A2 "^Codename: $codename" | egrep "^Suite: " | cut -d: -f2 | sed 's/[ \t]//g')"
+	fi
 }
