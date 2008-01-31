@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ####################
-#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#    Copyright (C) 2007, 2008 by Raphael Geissert <atomo64@gmail.com>
 #
 #    This file is part of DeBaBaReTools
 #
@@ -61,7 +61,8 @@ setDefault "VERBOSE" "0"
 setDefault "BUILD_DIR" "$BASE_DIR/build"
 setDefault "BUILD_DATA" "$BUILD_DIR/data"
 setDefault "BUILD_LOGS_DIR" "$BUILD_DATA/logs"
-#ENV: SIGN: yes(default): require signature to upload (package is only built), no: upload as-is (most likely unsigned), auto: auto-sign the .changes file (make sure it is all setup correctly for this)
+#ENV: SIGN: yes(default): require signature to upload (package is only built), no: upload as-is
+#.(most likely unsigned), auto: auto-sign the .changes file (make sure it is all setup correctly for this)
 setDefault "SIGN" "yes"
 #ENV: SIGN_COMMAND: command used to sign the .changes file (only used when SIGN=auto), usually debsign (default)
 setDefault "SIGN_COMMAND" "debsign"
@@ -71,8 +72,10 @@ setDefault "BUILD_DATA_CACHE" "$BUILD_DIR/cache"
 setDefault "KEYRING" "secring.gpg"
 #ENV: UPDATE_ENVIRONMENT: 1(default): automagically update the build environment before building, 0: do nothing
 setDefault "UPDATE_ENVIRONMENT" "1"
-#ENV: GAINROOT: command (sudo by default) to gain root access for some not-build-time operations (e.g. chroot, pbuilder)
+#ENV: GAINROOT: command (sudo by default) to gain root access for some not-build-time operations
+#.(e.g. chroot, pbuilder)
 setDefault "GAINROOT" "sudo"
+setDefault "BUILD_ARCHALL" "1"
 
 setLockFiles
 lockApplication
@@ -97,26 +100,32 @@ for DISTRO in $DISTROS_TO_BUILD; do
 
 	distroToCodename "$DISTRO"
 
-	TOBUILD="`getToBuild "$CODENAME" "$DEB_HOST_ARCH"`"
+	TOBUILD="$(getToBuild "$CODENAME" "$DEB_HOST_ARCH")"
+	if [ "$BUILD_ARCHALL" -gt 0 ]; then
+		TOBUILD+=" $(getToBuild "$CODENAME" "all")"
+	fi
+
 	for ENTRY in $TOBUILD; do
 		checkUnlock
 
-		buildingForArchs="$DEB_HOST_ARCH"
+		buildingForArchs="$arch"
 
 		parsePackageEntry "$ENTRY"
+
+		buildQueue "$ENTRY" "$arch" "requestLock" || continue
 
 		Say  "\tFetching source package $package v$version"
 
 		workingDir="`mktemp -d -p "$BUILD_DIR/" "${package}XXXXXX"`" || exit 1
 
 		( cd "$workingDir"; fetchSource "$dscURI"; )
-		buildQueue "$ENTRY" "$DEB_HOST_ARCH" "fetched"
+		buildQueue "$ENTRY" "$arch" "fetched"
 
 		dscName="`basename "$dscURI"`"
 
 		if [ ! -f "$workingDir/$dscName" ]; then
 			Say  "\tCouldn't find downloaded $dscName, fetch failed?"
-			buildQueue "$ENTRY" "$DEB_HOST_ARCH" "fetch-failed"
+			buildQueue "$ENTRY" "$arch" "fetch-failed"
 			continue
 		fi
 
@@ -126,16 +135,18 @@ for DISTRO in $DISTROS_TO_BUILD; do
 			checkUnlock; exit 3 # make sure we quit
 		fi
 
-		buildQueue "$ENTRY" "$DEB_HOST_ARCH" "building"
+		buildQueue "$ENTRY" "$arch" "building"
 
 		BUILD_TYPE=binary-arch
 
 		# Check whether we are building binary-arch or also include indep
-		if hasPendingArchAll "$DISTRO" "$ENTRY"; then
+		if [ "$arch" != "all" ] && hasPendingArchAll "$DISTRO" "$ENTRY" \
+					&& buildQueue "$ENTRY" "all" "requestLock"; then
 			BUILD_TYPE=binary-all
 			buildingForArchs+=" all"
-			buildQueue "$ENTRY" "all" "building"
 			Say "\t\tAlso going to build 'all'"
+		else
+			BUILD_TYPE=binary-indep
 		fi
 
 		if shallUnlock; then
@@ -146,7 +157,8 @@ for DISTRO in $DISTROS_TO_BUILD; do
 		fi
 
 		Say "\tStarting build backend..."
-		buildPackage "$dscName" "$BUILD_TYPE" "$workingDir" "$CODENAME"
+		#ENV: MAINTAINER: maintainer name used when building the package (must match the key used to sign)
+		buildPackage "$dscName" "$BUILD_TYPE" "$workingDir" "$CODENAME" "$MAINTAINER"
 
 		CHANGES="`echo "$workingDir"/*.changes`"
 
@@ -176,7 +188,7 @@ for DISTRO in $DISTROS_TO_BUILD; do
 			fi
 		fi
 
-		BUILD_LOG="`echo "$workingDir"/*.build`"
+		BUILD_LOG="$(echo "$workingDir"/*.build)"
 
 		#
 		# Make sure we got something
@@ -197,11 +209,9 @@ for DISTRO in $DISTROS_TO_BUILD; do
 
 		buildQueue "$ENTRY" "$buildingForArchs" "uploaded"
 
-		filesInBuild="$workingDir/*"
 		Say "\t\tCleaning results directory ($workingDir):"
 
-		for F in "$filesInBuild"; do
-			F="$workingDir/$F"
+		for F in "$workingDir"/*; do
 			Say "\t\trm -rf $F"
 			rm -rf "$F"
 		done

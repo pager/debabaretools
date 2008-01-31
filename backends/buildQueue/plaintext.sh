@@ -1,6 +1,6 @@
 
 ####################
-#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#    Copyright (C) 2007, 2008 by Raphael Geissert <atomo64@gmail.com>
 #
 #    This file is part of DeBaBaReTools
 #
@@ -75,7 +75,7 @@ getToBuild() {
 		true
 	fi
 
-	cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "([^|]+)\|$arch\|needsBuild" | cut '-d|' -f1 || true
+	cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "([^|]+)\|$arch\|needsBuild" | cut '-d|' -f-2 || true
 }
 
 #USAGE: hasPendingArchAll(distro, package): hasPendingArchAll "unstable" "foo_1.1-1"
@@ -92,13 +92,11 @@ hasPendingArchAll() {
 		false
 	fi
 
+	package="$(cut '-d|' -f1 <<< "$package")"
+
 	escapeForRegex "$package"
 
-	if [ ! -z "`cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "$ESCAPED\|all\|needsBuild"`" ]; then
-		true
-	else
-		false
-	fi
+	cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "$ESCAPED\|all\|needsBuild" &>/dev/null
 }
 
 #USAGE: markAsBuilt(distro, package, version, arch): markAsBuilt "unstable" "foo" "1.1-1" "i386"
@@ -177,10 +175,11 @@ shutdownBuildQueue() {
 }
 
 parsePackageEntry() {
-	local pkg="`echo "${1:-}" | cut '-d|' -f1`"
-	package="`echo "$pkg" | cut -d_ -f1`"
-	version="`echo "$pkg" | cut -d_ -f2-`"
+	local pkg="$(cut '-d|' -f1 <<< "${1:-}")"
+	package="$(cut -d_ -f1 <<< "$pkg")"
+	version="$(cut -d_ -f2- <<< "$pkg")"
 #TODO: use a better way to find the path to the .dsc file in parsePackageEntry
-	dscURI="`find "$BASE_DIR" -name "$pkg.dsc" -print0 `" # | xargs -0 -r readlink -f`"
+	dscURI="$(find "$BASE_DIR" -name "$pkg.dsc" -type f -print0 )" # | xargs -0 -r readlink -f)"
+	arch="$(cut '-d|' -f2 <<< "${1:-}")"
 }
 

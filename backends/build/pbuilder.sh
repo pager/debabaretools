@@ -1,6 +1,6 @@
 
 ####################
-#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#    Copyright (C) 2007, 2008 by Raphael Geissert <atomo64@gmail.com>
 #
 #    This file is part of DeBaBaReTools
 #
@@ -20,22 +20,30 @@
 
 setDefault "PBUILDER_CACHE" "/var/cache/pbuilder"
 
-#buildPackage "$dscURI" "$BUILD_TYPE" "$workingDir"
+#buildPackage "$dscURI" "$BUILD_TYPE" "$workingDir" "$distro" ["$maintainer"]
 buildPackage() {
 	if [ "$UPDATE_ENVIRONMENT" -gt 0 ]; then
 		updateTGZ
 	fi
 
-	local pbuilderopts dscURI="${1:-}" buildType="${2:-}" workingDir="${3:-}" distro="${4:-}" es
+	local dscURI="${1:-}" buildType="${2:-}" workingDir="${3:-}" distro="${4:-}" maintainer="${5:-}"
+	local pbuilderopts es
 
 	case $buildType in 
 		binary-arch)
 			pbuilderopts=' --binary-arch'
 		;;
+		binary-indep)
+			pbuilderopts='--debbuildopts -A'
+		;;
 		binary-all)
 			pbuilderopts='--debbuildopts -b'
 		;;
 	esac
+
+	if [ ! -z "$maintainer" ]; then
+		pbuilderopts+=" --debbuildopts -m'$maintainer'"
+	fi
 
 	Say "\t\tStarting build process"
 
