@@ -179,7 +179,7 @@ parsePackageEntry() {
 	package="$(cut -d_ -f1 <<< "$pkg")"
 	version="$(cut -d_ -f2- <<< "$pkg")"
 #TODO: use a better way to find the path to the .dsc file in parsePackageEntry
-	dscURI="$(find "$BASE_DIR" -name "$pkg.dsc" -type f -print0 )" # | xargs -0 -r readlink -f)"
+	dscURI="$(readlink -f "$(find "$BASE_DIR" -name "$pkg.dsc" -type f)")"
 	arch="$(cut '-d|' -f2 <<< "${1:-}")"
 }
 

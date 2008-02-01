@@ -41,8 +41,9 @@
 # REAL_VALUE the real value for a check (e.g. real md5sum)
 # FILE_VALUE the value specified by the .dsc/.changes file
 #
-# Note: OK messages (either NOT_HUMAN=1 or 0) are only displayed when VERBOSE is set
-# 2nd note: an OK message when NOT_HUMAN=1 and VERBOSE is set will be like OK|FILE|SIZE|MD5SUM
+# Note: OK messages (on NOT_HUMAN=1) are only displayed when VERBOSE is set
+# 2nd note: when NOT_HUMAN= VERBOSE is enabled by default
+# 3rd note: an OK message when NOT_HUMAN=1 and VERBOSE is set will be like OK|FILE|SIZE|MD5SUM
 #
 
 if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
@@ -52,27 +53,31 @@ fi
 set -e
 
 if [ -z "$1" ]; then
-    echo "Usage: $0 FILE.dsc|FILE.changes [VERBOSE]"
+    echo "Usage: $0 FILE.dsc|FILE.changes [NO|VERBOSE]"
     echo "Environment options: NOT_HUMAN=0|1 (default: 0)"
     exit 1
 fi
 
 # Now process options
-
+VERBOSE=
 if [ -z "$NOT_HUMAN" ]; then
     NOT_HUMAN=
+    VERBOSE=1
 else 
     if [ "$NOT_HUMAN" ]; then
         NOT_HUMAN="yes"
     else
         NOT_HUMAN=
+        VERBOSE=1
     fi
 fi
 
-if [ ! -z "$2" ] && [ "$2" = "VERBOSE" ]; then
-    VERBOSE="yes"
-else
-    VERBOSE=
+if [ ! -z "$2" ]; then
+	if [ "$2" = "VERBOSE" ]; then
+		VERBOSE="yes"
+	elif [ "$2" = "NOVERBOSE" ]; then
+		VERBOSE=
+	fi
 fi
 
 # Lets process the file

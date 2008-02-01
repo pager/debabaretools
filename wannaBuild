@@ -75,6 +75,7 @@ setDefault "UPDATE_ENVIRONMENT" "1"
 #.(e.g. chroot, pbuilder)
 setDefault "GAINROOT" "sudo"
 setDefault "BUILD_ARCHALL" "1"
+setDefault "CHECKSUMS" "$(which checkSums)"
 
 setLockFiles
 lockApplication
@@ -117,10 +118,16 @@ for DISTRO in $DISTROS_TO_BUILD; do
 
 		workingDir="`mktemp -d -p "$BUILD_DIR/" "${package}XXXXXX"`" || exit 1
 
-		( cd "$workingDir"; fetchSource "$dscURI"; )
+		(cd "$workingDir"; fetchSource "$dscURI")
+
 		buildQueue "$ENTRY" "$arch" "fetched"
 
 		dscName="`basename "$dscURI"`"
+
+		if ! (cd "$workingDir"; output="$($CHECKSUMS "$dscName")"); then
+			Say "$output"
+			rm -rf "$workingDir"
+		fi
 
 		if [ ! -f "$workingDir/$dscName" ]; then
 			Say  "\tCouldn't find downloaded $dscName, fetch failed?"
