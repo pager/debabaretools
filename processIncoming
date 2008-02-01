@@ -96,8 +96,6 @@ else
 	CURRENT_CHANGES=
 fi
 
-touch "$RECLAIMED_FILE"
-
 for CHANGES in $CURRENT_CHANGES; do
 	if shallUnlock; then
 		unlink "$RECLAIMED_FILE"

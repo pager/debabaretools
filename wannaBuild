@@ -25,7 +25,6 @@ if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
 fi
 set -e
-set +f
 
 declare -r APP_NAME="wannaBuild"
 declare -r APP_VERSION="0.1"
@@ -140,7 +139,7 @@ for DISTRO in $DISTROS_TO_BUILD; do
 		BUILD_TYPE=binary-arch
 
 		# Check whether we are building binary-arch or also include indep
-		if [ "$arch" != "all" ] && hasPendingArchAll "$DISTRO" "$ENTRY" \
+		if [ "$arch" != "all" ] && hasPendingArchAll "$CODENAME" "$ENTRY" \
 					&& buildQueue "$ENTRY" "all" "requestLock"; then
 			BUILD_TYPE=binary-all
 			buildingForArchs+=" all"
