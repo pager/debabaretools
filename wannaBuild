@@ -124,10 +124,11 @@ for DISTRO in $DISTROS_TO_BUILD; do
 
 		dscName="`basename "$dscURI"`"
 
-		if ! (cd "$workingDir"; output="$($CHECKSUMS "$dscName")"); then
-			Say "$output"
-			rm -rf "$workingDir"
-		fi
+		(cd "$workingDir"; \
+		if ! output="$($CHECKSUMS "$dscName")"; then \
+			Say "$output"; \
+			rm -rf "$workingDir"; \
+		fi)
 
 		if [ ! -f "$workingDir/$dscName" ]; then
 			Say  "\tCouldn't find downloaded $dscName, fetch failed?"
@@ -151,7 +152,7 @@ for DISTRO in $DISTROS_TO_BUILD; do
 			BUILD_TYPE=binary-all
 			buildingForArchs+=" all"
 			Say "\t\tAlso going to build 'all'"
-		else
+		elif [ "$arch" = "all" ]; then
 			BUILD_TYPE=binary-indep
 		fi
 
