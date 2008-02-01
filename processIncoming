@@ -51,7 +51,7 @@ probeFile "config"
 cd "$BASE_DIR"
 
 # afterwards we load the rest
-probeFile "lock" "verbosity" "misc" "setDefault" "signature" "repository" "check" "parsers"
+probeFile "lock" "verbosity" "misc" "setDefault" "signature" "repository" "check" "parsers" "codenamesTable"
 
 setDefault "LOCK_DIR" "$BASE_DIR"
 setDefault "VERBOSE" "0"
@@ -119,7 +119,7 @@ for CHANGES in $CURRENT_CHANGES; do
 	getChangesEntry "$CHANGES" "Distribution"
 
 	if ! isDistroSupported "$DISTRIBUTION"; then
-		Say "$CHANGES is for the unsupported $DISTRIBUTION distribution!"
+		Say "$(basename $CHANGES) is for the unsupported $DISTRIBUTION distribution!"
 		continue
 	fi
 
@@ -132,13 +132,13 @@ for CHANGES in $CURRENT_CHANGES; do
 	fi
 
 	moveToNEW=0
-	if [ "$NEW_POLICY" == "binary" ] && hasNewBin "$CHANGES"; then
+	if [ "$NEW_POLICY" == "binary" ] && hasNewBin "$UPLOADQUEUE/$CHANGES"; then
 		moveToNEW=1
 	fi
 
 	# We are still here: signature, file size and md5sums are all fine
 	# now let's  move the files to $ACCEPTED so they are processed by some other scripts
-	for E in "$OUTPUT"; do
+	for E in $OUTPUT; do
 		filename="$(cut '-d|' -f2 <<< "$E")"
 		CURRENT="$(sed "s#$UPLOADQUEUE/$filename##" <<< "$CURRENT")"
 
