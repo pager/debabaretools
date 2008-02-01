@@ -191,7 +191,7 @@ isDistroSupported() {
 		grep-dctrl -n -X -FSuite "$suite" -sCodename "$distributionsFile" > /dev/null
 		return
 	else
-		listedSuites=$(egrep '^Suite:' $distributionsFile | sort -ru | awk '-F: ' '{ print $2 }')
+		listedSuites=$(egrep '^Suite:' "$distributionsFile" | sort -ru | awk '-F: ' '{ print $2 }')
 
 		for suite in $listedSuites; do
 			if [ "$suite" == "$distro" ]; then
@@ -230,7 +230,7 @@ isCodenameSupported() {
 		grep-dctrl -n -X -FCodename "$codename" -sSuite "$distributionsFile" > /dev/null
 		return
 	else
-		listedCodenames="$(cat $distributionsFile | egrep '^Codename:' | sort -ru | awk '-F: ' '{ print $2 }')"
+		listedCodenames="$(egrep '^Codename:' "$distributionsFile" | sort -ru | awk '-F: ' '{ print $2 }')"
 
 		for codename in $listedCodenames; do
 			if [ "$codename" = "$suite" ]; then
@@ -258,7 +258,7 @@ getSupportedRepDistros() {
 		return 2
 	fi
 
-	listedSuites=`cat $distributionsFile | grep Suite: | sort -ru | awk '-F: ' '{ print $2 }'`
+	listedSuites="$(egrep '^Suite:' "$distributionsFile" | sort -ru | awk '-F: ' '{ print $2 }')"
 
 	# make public the information:
 	SUPPORTED_DISTROS="$listedSuites"
@@ -280,7 +280,7 @@ getSupportedRepCodenames() {
 		return 2
 	fi
 
-	listedCodenames=`cat $distributionsFile | grep Codename: | sort -ru | awk '-F: ' '{ print $2 }'`
+	listedCodenames="$(egrep '^Codename:' "$distributionsFile" | sort -ru | awk '-F: ' '{ print $2 }')"
 
 	# make public the information:
 	SUPPORTED_CODENAMES="$listedCodenames"

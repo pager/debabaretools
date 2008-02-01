@@ -1,6 +1,6 @@
 
 ####################
-#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#    Copyright (C) 2007, 2008 by Raphael Geissert <atomo64@gmail.com>
 #
 #    This file is part of DeBaBaReTools
 #
@@ -17,29 +17,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
-
-# this function should populate all info from a .changes file
-parseChangesFile() {
-    local CONTENTS
-    local L
-    local RESULT
-    
-#     CONTENTS="`cat $CHANGES_FILE`"
-    
-#     for L in $CONTENTS; do
-        
-#     done
-    
-}
-
-# this function should populate all info from a .dsc file
-# ?: do we really need this?
-parseDscFile() {
-    local CONTENTS
-    
-    CONTENTS="`cat $DSC_FILE`"
-
-}
 
 #USAGE: getChangesEntry(changesFile, entryName): getChangesEntry "foo_0.1-1_i386.changes" "Version"
 getChangesEntry() {
@@ -60,9 +37,9 @@ getChangesEntry() {
 		;;
 	esac
 
-	var="`echo "$entry" | sed "s/\-/_/g" | awk '{ print toupper($0) }'`"
+	var="$(echo "$entry" | sed "s/\-/_/g" | awk '{ print toupper($0) }')"
 
-	eval "$var="`cat $file | grep -m1 $entry: | cut '-d:' -f2- | sed "s/^ //"`""
+	eval "$var="$(egrep -m1 "^$entry:" "$file" | cut '-d:' -f2- | sed "s/^ //")""
 }
 
 #USAGE: getDscEntry(dscFile, entryName): getDscEntry "foo_0.1-1.dsc" "Version"
@@ -84,9 +61,9 @@ getDscEntry() {
 		;;
 	esac
 
-	var="`echo "$entry" | sed "s/\-/_/g" | awk '{ print toupper($0) }'`"
+	var="$(echo "$entry" | sed "s/\-/_/g" | awk '{ print toupper($0) }')"
 
-	eval "$var="`cat $file | grep -m1 $entry: | cut '-d:' -f2- | sed "s/^ //"`""
+	eval "$var="$(egrep -m1 "^$entry:" "$file" | cut '-d:' -f2- | sed "s/^ //")""
 }
 
 #USAGE: getChangesFiles(dscFile): getChangesFiles "foo_0.1-1.dsc"
@@ -99,8 +76,8 @@ getChangesFiles() {
 	local file changesFiles dirname
 	file="${1:-}"
 
-	dirname="`dirname "$file"`"
-	changesFiles="`cat "$file" | egrep "[0-9a-f]{32} [0-9]+ [a-z]+ [a-z]+ .*" | cut '-d ' -f6- `"
+	dirname="$(dirname "$file")"
+	changesFiles="$(egrep "[0-9a-f]{32} [0-9]+ [a-z]+ [a-z]+ .*" "$file" | cut '-d ' -f6- )"
 
 	CHANGES_FILES=
 	for f in $changesFiles; do
@@ -118,8 +95,8 @@ getDscFiles() {
 	local file dscFiles dirname
 	file="${1:-}"
 
-	dirname="`dirname "$file"`"
-	dscFiles="`cat "$file" | egrep "[0-9a-f]{32} [0-9]+ .*" | cut '-d ' -f4-`"
+	dirname="$(dirname "$file")"
+	dscFiles="$(egrep "[0-9a-f]{32} [0-9]+ .*" "$file" | cut '-d ' -f4-)"
 
 	DSC_FILES=
 	for f in $dscFiles; do

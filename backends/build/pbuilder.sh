@@ -27,7 +27,7 @@ buildPackage() {
 	fi
 
 	local dscURI="${1:-}" buildType="${2:-}" workingDir="${3:-}" distro="${4:-}" maintainer="${5:-}"
-	local pbuilderopts es
+	local pbuilderopts es logFile
 
 	case $buildType in 
 		binary-arch)
@@ -45,13 +45,15 @@ buildPackage() {
 		pbuilderopts+=" --debbuildopts -m'$maintainer'"
 	fi
 
+	logFile="$workingDir/$(sed "s#\.dsc#_$DEB_HOST_ARCH#" <<< "$dscURI").build"
+
 	Say "\t\tStarting build process"
 
 	if ! $GAINROOT pbuilder --build $pbuilderopts --buildresult "$workingDir" \
 		--basetgz "${PBUILDER_CACHE}/$distro.tgz" "$workingDir/$dscURI" \
-		&> "$workingDir/$dscURI.build"; then
+		&> "$logFile"; then
 			es=$?
-			Say "Build failed, cat "$workingDir/$dscURI.build" for more information"
+			Say "Build failed, cat "$logFile" for more information"
 			return $es
 	fi
 }

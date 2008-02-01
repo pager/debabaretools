@@ -23,7 +23,7 @@ distroToCodename() {
 
 	if [ ! -z "${2:-}" ] && [ -f "${2:-}" ]; then
 		distributionsFile="${2:-}"
-	elif [ -f "$BASE_DIR/conf/incoming" ]; then
+	elif [ -f "$BASE_DIR/conf/distributions" ]; then
 		distributionsFile="$BASE_DIR/conf/distributions"
 	fi
 
@@ -38,7 +38,7 @@ distroToCodename() {
 	if which grep-dctrl > /dev/null; then
 		CODENAME="$(grep-dctrl -n -X -FSuite "$distro" -sCodename "$distributionsFile")"
 	else
-		CODENAME="$(cat "$distributionsFile" | egrep -B2 -A2 "^Suite: $distro" | egrep "^Codename: " | cut -d: -f2 | sed 's/[ \t]//g')"
+		CODENAME="$(egrep -B2 -A2 "^Suite: $distro" "$distributionsFile" | egrep "^Codename: " | cut -d: -f2 | sed 's/[ \t]//g')"
 	fi
 }
 
@@ -47,7 +47,7 @@ codenameToDistro() {
 
 	if [ ! -z "${2:-}" ] && [ -f "${2:-}" ]; then
 		distributionsFile="${2:-}"
-	elif [ -f "$BASE_DIR/conf/incoming" ]; then
+	elif [ -f "$BASE_DIR/conf/distributions" ]; then
 		distributionsFile="$BASE_DIR/conf/distributions"
 	fi
 
@@ -62,6 +62,6 @@ codenameToDistro() {
 	if which grep-dctrl > /dev/null; then
 		DISTRO="$(grep-dctrl -n -X -FCodename "$codename" -sSuite "$distributionsFile")"
 	else
-		DISTRO="$(cat "$distributionsFile" | egrep -B2 -A2 "^Codename: $codename" | egrep "^Suite: " | cut -d: -f2 | sed 's/[ \t]//g')"
+		DISTRO="$(egrep -B2 -A2 "^Codename: $codename" "$distributionsFile" | egrep "^Suite: " | cut -d: -f2 | sed 's/[ \t]//g')"
 	fi
 }
