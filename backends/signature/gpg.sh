@@ -1,6 +1,6 @@
 
 ####################
-#    Copyright (C) 2007, 2008 by Raphael Geissert <atomo64@gmail.com>
+#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
 #
 #    This file is part of DeBaBaReTools
 #
@@ -23,17 +23,17 @@ checkSign() {
 		return 2
 	fi
 	
-	local output opts file="${1:-}" gpgv
+	local output opts file="${1:-}" gpg
 
 	for k in ${2:-}; do
 		opts+="--keyring "$k" "
 	done
 
-	gpgv="$(which gpgv)" || gpgv="$(which gpgv2)" || Say "Couldn't find a gpgv to use!"
+	gpg="$(which gpg)" || gpg="$(which gpg2)" || Say "Couldn't find a gpg to use!"
 
-	[ ! -z "$gpgv" ] || return $?
+	[ ! -z "$gpg" ] || return $?
 
-	if output="$($gpgv $opts --quiet "$file" 2>&1)"; then
+	if output="$($gpg --no-options --no-default-keyring --trust-model always --batch $opts --quiet "$file" 2>&1)"; then
 		return
 	else
 		Say "$output"

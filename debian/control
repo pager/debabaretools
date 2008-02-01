@@ -9,7 +9,7 @@ Vcs-Browser: https://neo.yahostme.com/svn/DeBaBaReTools/trunk/
 
 Package: debabaretools
 Architecture: all
-Depends: ${misc:Depends}, gpgv
+Depends: ${misc:Depends}, gpgv | gnupg | gnupg2
 Recommends: reprepro, devscripts, sudo, dput, dctrl-tools
 Description: The Debian Bash-Based Repository Tools
  Set of scripts or "glues" between different builders and repository tools
