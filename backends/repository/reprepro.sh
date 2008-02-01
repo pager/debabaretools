@@ -46,7 +46,7 @@ installIncoming() {
 	for rule in $rulesets; do
 		if OUTPUT="`reprepro processincoming "$rule" 2>&1`"; then
 			[ -z "$OUTPUT" ] || Say "$OUTPUT"
-		else
+		#else
 			# We shut up reprepro's useless messages
 			#[ -z "$OUTPUT" ] || Say "$OUTPUT"
 			# We don't return because if a .changes doesn't match an specific rule 
