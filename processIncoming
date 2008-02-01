@@ -62,7 +62,6 @@ setDefault "NEW" "$INCOMING/new"
 setDefault "NEW_POLICY" "binary"
 setDefault "REJECTED" "$INCOMING/rejected"
 setDefault "REJECTED_POLICY" "move"
-setDefault "RECLAIMED_FILE" "$ACCEPTED/reclaimed"
 setDefault "CHECK_SIGNATURE" "1"
 setDefault "INSTALL" "0"
 setDefault "KEYRING" "uploaders.gpg"
@@ -115,7 +114,6 @@ for CHANGES in $CURRENT_CHANGES; do
 		
 		if ! checkSign "$CHANGES" "$KEYRING"; then
 			Say "\tNo valid signature found"
-			# we skip it so it doesn't get added to the reclaimed file
 			continue
 		fi
 	fi
@@ -132,24 +130,31 @@ for CHANGES in $CURRENT_CHANGES; do
 	OUTPUT="`(cd $UPLOADQUEUE; NOT_HUMAN=1 $CHECKSUMS "$CHANGES" VERBOSE )`"
 	if [ "$?" != "0" ]; then
 		Say "$OUTPUT"
-		# we skip it so it doesn't get added to the reclaimed file
 		continue
 	fi
 
+	moveToNEW=0
+	if [ "$NEW_POLICY" == "binary" ] && hasNewBin "$CHANGES"; then
+		moveToNEW=1
+	fi
+
 	# We are still here: signature, file size and md5sums are all fine
-	# now let's add the files to the reclaimed file so they are not deleted
-	for F in "$OUTPUT"; do
-		cut '-d|' -f2 <<< "$F" >> "$RECLAIMED_FILE"
+	# now let's  move the files to $ACCEPTED so they are processed by some other scripts
+	for E in "$OUTPUT"; do
+		filename="$(cut '-d|' -f2 <<< "$E")"
+		CURRENT="$(sed "s#$UPLOADQUEUE/$filename##" <<< "$CURRENT")"
+
+		if [ $moveToNEW -gt 0 ]; then
+			doNotOverwrite "$NEW/$filename"
+			Say "mv'ing \"$UPLOADQUEUE/$filename\" to \"$NEW/\""
+			mv "$UPLOADQUEUE/$filename" "$NEW/"
+			continue
+		fi
+
+		doNotOverwrite "$ACCEPTED/$filename"
+		Say "mv'ing \"$UPLOADQUEUE/$filename\" to \"$ACCEPTED/\""
+		mv "$UPLOADQUEUE/$filename" "$ACCEPTED/"
 	done
-done
-
-# Remove duplicates (there shouldn't be any)
-RECLAIMED_LIST="$(cat "$RECLAIMED_FILE")"
-sort -u <<< "$RECLAIMED_LIST" > "$RECLAIMED_FILE"
-
-# Prepare list of files to be removed (not reclaimed by anyone)
-for F in $(cat "$RECLAIMED_FILE"); do
-	CURRENT="`echo "$CURRENT" | sed "s#$UPLOADQUEUE/$F##"`"
 done
 
 if [ "$REJECTED_POLICY" == "kill" ]; then
@@ -165,6 +170,7 @@ elif [ "$REJECTED_POLICY" == "move" ]; then
 	if [ ! -z "$CURRENT" ] && [ -d "$REJECTED" ]; then
 		for f in $CURRENT; do
 			Say "mv'ing \"$f\" to \"$REJECTED/\""
+			doNotOverwrite "$REJECTED/$f"
 			mv "$f" "$REJECTED/"
 		done
 	fi
@@ -172,24 +178,6 @@ else
 	Say "Unknown REJECTED_POLICY: $REJECTED_POLICY, aborting"
 	exit 1
 fi
-
-# Move the files to $ACCEPTED so they are processed by some other scripts
-for F in `cat "$RECLAIMED_FILE"`; do
-
-# 	if [ "$NEW_POLICY" == "binary" ] && hasNewBin "$F"; then
-# 		doNotOverwrite "$NEW/$F"
-# 		Say "mv'ing \"$UPLOADQUEUE/$F\" to \"$NEW/\""
-# 		mv "$UPLOADQUEUE/$F" "$NEW/"
-# 		continue
-# 	fi
-
-	doNotOverwrite "$ACCEPTED/$F"
-	Say "mv'ing \"$UPLOADQUEUE/$F\" to \"$ACCEPTED/\""
-	mv "$UPLOADQUEUE/$F" "$ACCEPTED/"
-done
-
-# After moving all files we don't need this list anymore
-unlink "$RECLAIMED_FILE"
 
 checkUnlock
 

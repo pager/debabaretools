@@ -1,6 +1,6 @@
 
 ####################
-#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#    Copyright (C) 2007, 2008 by Raphael Geissert <atomo64@gmail.com>
 #
 #    This file is part of DeBaBaReTools
 #
@@ -36,7 +36,7 @@ installIncoming() {
 		return 2
 	fi
 
-	rulesets="`cat "$incomingFile" | grep "Name:" | sed "s/[ \t]*Name:[ \t]*//gi" | sort -u`"
+	rulesets="$(egrep "^Name:" "$incomingFile" | sed "s/Name:[ \t]*//gi" | sort -u)"
 
 	if [ -z "$rulesets" ]; then
 		Say "Couldn't find any ruleset in $incomingFile"
@@ -47,7 +47,8 @@ installIncoming() {
 		if OUTPUT="`reprepro processincoming "$rule" 2>&1`"; then
 			[ -z "$OUTPUT" ] || Say "$OUTPUT"
 		else
-			[ -z "$OUTPUT" ] || Say "$OUTPUT"
+			# We shut up reprepro's useless messages
+			#[ -z "$OUTPUT" ] || Say "$OUTPUT"
 			# We don't return because if a .changes doesn't match an specific rule 
 			# reprepro complains about it (but the file might be accepted by an other rule)
 			#return "$?"
@@ -62,7 +63,7 @@ getSupportedRepArchs() {
 
 	if [ ! -z "${1:-}" ] && [ -f "${1:-}" ]; then
 		distributionsFile="${1:-}"
-	elif [ -f "$BASE_DIR/conf/incoming" ]; then
+	elif [ -f "$BASE_DIR/conf/distributions" ]; then
 		distributionsFile="$BASE_DIR/conf/distributions"
 	fi
 
@@ -71,7 +72,7 @@ getSupportedRepArchs() {
 		return 2
 	fi
 
-	listedArchs=`cat $distributionsFile | grep Architectures: | sort -ru | awk '-F: ' '{ print $2 }'`
+	listedArchs=$(egrep '^Architectures:' "$distributionsFile" | sort -ru | awk '-F: ' '{ print $2 }')
 
 	for ARCH in $listedArchs; do
 		if [ "$ARCH" != "source" ]; then
@@ -177,7 +178,7 @@ isDistroSupported() {
 
 	if [ ! -z "${2:-}" ] && [ -f "${2:-}" ]; then
 		distributionsFile="${2:-}"
-	elif [ -f "$BASE_DIR/conf/incoming" ]; then
+	elif [ -f "$BASE_DIR/conf/distributions" ]; then
 		distributionsFile="$BASE_DIR/conf/distributions"
 	fi
 
@@ -186,15 +187,20 @@ isDistroSupported() {
 		return 2
 	fi
 
-	listedSuites=`cat $distributionsFile | grep Suite: | sort -ru | awk '-F: ' '{ print $2 }'`
+	if which grep-dctrl > /dev/null; then
+		grep-dctrl -n -X -FSuite "$suite" -sCodename "$distributionsFile" > /dev/null
+		return
+	else
+		listedSuites=$(egrep '^Suite:' $distributionsFile | sort -ru | awk '-F: ' '{ print $2 }')
 
-	for suite in $listedSuites; do
-		if [ "$suite" == "$distro" ]; then
-			return
-		fi
-	done
+		for suite in $listedSuites; do
+			if [ "$suite" == "$distro" ]; then
+				return
+			fi
+		done
 
-	false
+		false; return
+	fi
 }
 
 #USAGE: isCodenameSupported(codename, [distributionsFile]): isCodenameSupported "sid";
@@ -211,7 +217,7 @@ isCodenameSupported() {
 
 	if [ ! -z "${2:-}" ] && [ -f "${2:-}" ]; then
 		distributionsFile="${2:-}"
-	elif [ -f "$BASE_DIR/conf/incoming" ]; then
+	elif [ -f "$BASE_DIR/conf/distributions" ]; then
 		distributionsFile="$BASE_DIR/conf/distributions"
 	fi
 
@@ -220,15 +226,20 @@ isCodenameSupported() {
 		return 2
 	fi
 
-	listedCodenames=`cat $distributionsFile | grep Codename: | sort -ru | awk '-F: ' '{ print $2 }'`
+	if which grep-dctrl > /dev/null; then
+		grep-dctrl -n -X -FCodename "$codename" -sSuite "$distributionsFile" > /dev/null
+		return
+	else
+		listedCodenames="$(cat $distributionsFile | egrep '^Codename:' | sort -ru | awk '-F: ' '{ print $2 }')"
 
-	for codename in $listedCodenames; do
-		if [ "$codename" == "$suite" ]; then
-			return
-		fi
-	done
+		for codename in $listedCodenames; do
+			if [ "$codename" = "$suite" ]; then
+				return
+			fi
+		done
 
-	false
+		false; return
+	fi
 }
 
 #USAGE: getSupportedRepDistros([distributionsFile]): getSupportedRepDistros;
@@ -273,4 +284,35 @@ getSupportedRepCodenames() {
 
 	# make public the information:
 	SUPPORTED_CODENAMES="$listedCodenames"
+}
+
+#USAGE: doesBinFromXSourceExist(binaryPackage, sourcePackage, codename, [dbDir]): 
+#. doesBinFromXSourceExist "php5-cli" "php5" "sid"; 
+#. doesBinFromXSourceExist "php5-cli" "php5" "sid" "$HOME/reprepro/db"
+doesBinFromXSourceExist() {
+
+	if [ -z "${1:-}" ] || [ -z "${2:-}" ] || [ -z "${3:-}" ]; then
+		Say "Wrong function usage! we expected three arguments"
+		return 2
+	fi
+
+	local dbDir binaryPackage codename sourcePackage packageVersion
+	binaryPackage="${1:-}"; sourcePackage="${2:-}"; codename="${3:-}"
+
+	if [ ! -z "${4:-}" ] && [ -d "${4:-}" ]; then
+		dbDir="${4:-}"
+	elif [ -d "$BASE_DIR/db" ]; then
+		dbDir="$BASE_DIR/db"
+	fi
+
+	if [ ! -d "$dbDir" ]; then
+		Say "Couldn't find reprepro's db/, where is reprepro going to take the data from?"
+		return 2
+	fi
+
+	local queryResult
+	queryResult="$(reprepro --dbdir "$dbDir" -T deb listfilter "$codename" "Package (==$binaryPackage), Source (==$sourcePackage)")"
+
+	[ ! -z "$queryResult" ]
+	return
 }

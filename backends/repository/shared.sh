@@ -1,6 +1,6 @@
 
 ####################
-#    Copyright (C) 2007 by Raphael Geissert <atomo64@gmail.com>
+#    Copyright (C) 2007, 2008 by Raphael Geissert <atomo64@gmail.com>
 #
 #    This file is part of DeBaBaReTools
 #
@@ -36,7 +36,6 @@ isArchSupportedIn() {
 	false
 }
 
-
 #USAGE: moveToIncoming(files[, files[, files[, ...]]]): moveToIncoming "foo_1.0-1_source.changes"
 moveToIncoming() {
 	if [ -z "${1:-}" ]; then
@@ -49,4 +48,27 @@ moveToIncoming() {
 		Say "mv'ing \"$f\" to \"$INCOMING\""
 		mv "$f" "$INCOMING/"
 	done
+}
+
+#USAGE: hasNewBin(changes): hasNewBin "foo_1.0-1_source.changes"
+hasNewBin() {
+	if [ -z "${1:-}" ]; then
+		Say "We expected at least one argument!"
+		return 2
+	fi
+	local changes="${1:-}" bin=
+
+	getChangesEntry "$changes" Binary
+	getChangesEntry "$changes" Source
+	getChangesEntry "$changes" Distribution
+
+	distroToCodename "$DISTRIBUTION"
+
+	for bin in $BINARY; do
+		if ! doesBinFromXSourceExist "$bin" "$SOURCE" "$CODENAME"; then
+			return
+		fi
+	done
+
+	false
 }
