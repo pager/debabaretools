@@ -188,7 +188,7 @@ isDistroSupported() {
 	fi
 
 	if which grep-dctrl > /dev/null; then
-		grep-dctrl -n -X -FSuite "$suite" -sCodename "$distributionsFile" > /dev/null
+		grep-dctrl -n -X -FSuite "$distro" -sCodename "$distributionsFile" > /dev/null
 		return
 	else
 		listedSuites=$(egrep '^Suite:' "$distributionsFile" | sort -ru | awk '-F: ' '{ print $2 }')
