@@ -75,7 +75,7 @@ getToBuild() {
 		true
 	fi
 
-	cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "([^|]+)\|$arch\|needsBuild" | cut '-d|' -f-2 || true
+	egrep "([^|]+)\|$arch\|needsBuild" "$needsBuild_dataDir/needsBuild.$distro" | cut '-d|' -f-2 || true
 }
 
 #USAGE: hasPendingArchAll(distro, package): hasPendingArchAll "unstable" "foo_1.1-1"
@@ -96,7 +96,7 @@ hasPendingArchAll() {
 
 	escapeForRegex "$package"
 
-	cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "$ESCAPED\|all\|needsBuild" &>/dev/null
+	egrep "$ESCAPED\|all\|needsBuild" "$needsBuild_dataDir/needsBuild.$distro" &>/dev/null
 }
 
 #USAGE: markAsBuilt(distro, package, version, arch): markAsBuilt "unstable" "foo" "1.1-1" "i386"
@@ -143,7 +143,7 @@ isPackageKnownByBuildQueue() {
 
 	escapeForRegex "$package|$arch|"
 
-	if [ ! -z "`cat "$needsBuild_dataDir/needsBuild.$distro" | egrep "$ESCAPED.*"`" ]; then
+	if [ ! -z "$(egrep "$ESCAPED.*" "$needsBuild_dataDir/needsBuild.$distro")" ]; then
 		true
 	else
 		false
