@@ -186,7 +186,7 @@ if [ $VERBOSE ]; then
     if [ $NOT_HUMAN ]; then
         echo "OK|$1"
     else
-        echo "All files specified by $FILE are ok! :)"
+        echo "All files specified by $1 are ok! :)"
     fi
 fi
 
