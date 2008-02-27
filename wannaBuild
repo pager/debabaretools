@@ -75,7 +75,6 @@ setDefault "UPDATE_ENVIRONMENT" "1"
 #.(e.g. chroot, pbuilder)
 setDefault "GAINROOT" "sudo"
 setDefault "BUILD_ARCHALL" "1"
-setDefault "CHECKSUMS" "$(which checkSums)"
 
 setLockFiles
 lockApplication
@@ -125,7 +124,7 @@ for DISTRO in $DISTROS_TO_BUILD; do
 		dscName="`basename "$dscURI"`"
 
 		(cd "$workingDir"; \
-		if ! output="$($CHECKSUMS "$dscName")"; then \
+		if ! output="$(checkSums "$dscName")"; then \
 			Say "$output"; \
 			rm -rf "$workingDir"; \
 		fi)

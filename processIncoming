@@ -62,10 +62,10 @@ setDefault "NEW" "$INCOMING/new"
 setDefault "NEW_POLICY" "binary"
 setDefault "REJECTED" "$INCOMING/rejected"
 setDefault "REJECTED_POLICY" "move"
+setDefault "REJECTED_KEEP_CHANGES" "0"
 setDefault "CHECK_SIGNATURE" "1"
 setDefault "INSTALL" "0"
 setDefault "KEYRING" "uploaders.gpg"
-setDefault "CHECKSUMS" "$(which checkSums)"
 
 setLockFiles
 lockApplication
@@ -74,85 +74,78 @@ if verbose; then
 	sayHello
 fi
 
-if [ ! -x "$CHECKSUMS" ]; then
-	Say "checkSums couldn't be found, checking in $BACKEND_DIR"
-
-	if [ -x "$BACKEND_DIR/checkSums" ]; then
-		CHECKSUMS="$BACKEND_DIR/checkSums"
-	else
-		Say "checkSums (or compatible executable) couldn't be found, aborting"
-		exit 1
-	fi
-fi
-
 #
 # Process files in the UploadQueue directory (not yet accepted)
 #
 
-CURRENT="`find "$UPLOADQUEUE" -maxdepth 1 -type f`"
+CURRENT="$(find "$UPLOADQUEUE" -maxdepth 1 -type f)"
 if [ ! -z "$CURRENT" ]; then
 	CURRENT_CHANGES="$(echo "$CURRENT" | egrep ".*\.changes$")"
 else
 	CURRENT_CHANGES=
 fi
 
-for CHANGES in $CURRENT_CHANGES; do
+processChanges() {
 	if shallUnlock; then
-		unlink "$RECLAIMED_FILE"
 		checkUnlock
 	fi
 
-	if [ -z "$CHANGES" ]; then
-		continue
+	local changes="${1:-}"
+
+	if [ -z "$changes" ]; then
+		return
 	fi
 
-	Say "Processing $CHANGES..."
+	Say "Processing $changes..."
 
-	if [ "$CHECK_SIGNATURE" -eq 1 ]; then
-		
-		if ! checkSign "$CHANGES" "$KEYRING"; then
-			Say "\tNo valid signature found"
-			continue
-		fi
+	if [ "$CHECK_SIGNATURE" -eq 1 ] && ! checkSign "$changes" "$KEYRING"; then
+		Say "\tNo valid signature found"
+		return
 	fi
 
-	getChangesEntry "$CHANGES" "Distribution"
+	getChangesEntry "$changes" "Distribution"
 
 	if ! isDistroSupported "$DISTRIBUTION"; then
-		Say "$(basename $CHANGES) is for the unsupported $DISTRIBUTION distribution!"
-		continue
+		Say "$(basename $changes) is for the unsupported $DISTRIBUTION distribution!"
+		return
 	fi
 
-	CHANGES=`basename "$CHANGES"`
+	changes="$(basename "$changes")"
 
-	OUTPUT="`(cd $UPLOADQUEUE; NOT_HUMAN=1 $CHECKSUMS "$CHANGES" VERBOSE )`"
-	if [ "$?" != "0" ]; then
-		Say "$OUTPUT"
-		continue
+	local es=0 output
+	output="`(cd $UPLOADQUEUE; NOT_HUMAN=1 checkSums "$changes" VERBOSE )`" || es=$?
+	if [ "$es" != "0" ]; then
+		Say "$output"
+		return
 	fi
 
-	moveToNEW=0
-	if [ "$NEW_POLICY" == "binary" ] && hasNewBin "$UPLOADQUEUE/$CHANGES"; then
+	local moveToNEW=0
+	if [ "$NEW_POLICY" == "binary" ] && hasNewBin "$UPLOADQUEUE/$changes"; then
 		moveToNEW=1
 	fi
 
 	# We are still here: signature, file size and md5sums are all fine
 	# now let's  move the files to $ACCEPTED so they are processed by some other scripts
-	for E in $OUTPUT; do
-		filename="$(cut '-d|' -f2 <<< "$E")"
+	local entry
+	for entry in $output; do
+		local filename="$(cut '-d|' -f2 <<< "$entry")"
 		CURRENT="$(sed "s#$UPLOADQUEUE/$filename##" <<< "$CURRENT")"
 
 		if [ $moveToNEW -gt 0 ]; then
 			doNotOverwrite "$NEW/$filename"
 			Say "mv'ing \"$UPLOADQUEUE/$filename\" to \"$NEW/\""
 			mv "$UPLOADQUEUE/$filename" "$NEW/"
-			continue
+			return
 		fi
 
 		doNotOverwrite "$ACCEPTED/$filename"
 		Say "mv'ing \"$UPLOADQUEUE/$filename\" to \"$ACCEPTED/\""
 		mv "$UPLOADQUEUE/$filename" "$ACCEPTED/"
 	done
+}
+
+for CHANGES in $CURRENT_CHANGES; do
+	processChanges "$CHANGES"
 done
 
 if [ "$REJECTED_POLICY" == "kill" ]; then
@@ -167,6 +160,12 @@ elif [ "$REJECTED_POLICY" == "move" ]; then
 	# Move them all!
 	if [ ! -z "$CURRENT" ] && [ -d "$REJECTED" ]; then
 		for f in $CURRENT; do
+
+			if [ "$REJECTED_KEEP_CHANGES" = "0" ] && egrep "\.changes$" <<< "$f" > /dev/null; then
+				Say "unlink'ing \"$f\""
+				unlink "$f"
+			fi
+
 			Say "mv'ing \"$f\" to \"$REJECTED/\""
 			doNotOverwrite "$REJECTED/$f"
 			mv "$f" "$REJECTED/"
