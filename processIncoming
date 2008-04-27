@@ -164,6 +164,7 @@ elif [ "$REJECTED_POLICY" == "move" ]; then
 			if [ "$REJECTED_KEEP_CHANGES" = "0" ] && egrep "\.changes$" <<< "$f" > /dev/null; then
 				Say "unlink'ing \"$f\""
 				unlink "$f"
+				continue
 			fi
 
 			Say "mv'ing \"$f\" to \"$REJECTED/\""
