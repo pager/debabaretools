@@ -29,6 +29,10 @@ Say() {
 	fi
 }
 
+print() {
+    verbose && print
+}
+
 verbose() {
 	if [ "$VERBOSE" -gt 0 ]; then
 		return 0
