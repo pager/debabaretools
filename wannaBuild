@@ -24,6 +24,7 @@
 if [ ! -z "$DEBUG" ] && [ "$DEBUG" ]; then
     set -x
 fi
+
 set -e
 
 declare -r APP_NAME="wannaBuild"
@@ -65,8 +66,9 @@ setDefault "BUILD_LOGS_DIR" "$BUILD_DATA/logs"
 setDefault "SIGN" "yes"
 #ENV: SIGN_COMMAND: command used to sign the .changes file (only used when SIGN=auto), usually debsign (default)
 setDefault "SIGN_COMMAND" "debsign"
-#ENV: DEB_HOST_ARCH: architecture which the packages are going to be built for (no magic is done for cross-building)
-setDefault "DEB_HOST_ARCH" "`dpkg-architecture -qDEB_HOST_ARCH`"
+#ENV: DEB_HOST_ARCH: architecture which the packages are going to be built for
+#. (no magic is done for cross-building)
+setDefault "DEB_HOST_ARCH" "$(dpkg-architecture -qDEB_HOST_ARCH)"
 setDefault "BUILD_DATA_CACHE" "$BUILD_DIR/cache"
 setDefault "KEYRING" "secring.gpg"
 #ENV: UPDATE_ENVIRONMENT: 1(default): automagically update the build environment before building, 0: do nothing
@@ -75,6 +77,12 @@ setDefault "UPDATE_ENVIRONMENT" "1"
 #.(e.g. chroot, pbuilder)
 setDefault "GAINROOT" "sudo"
 setDefault "BUILD_ARCHALL" "1"
+#ENV: DAEMON_MODE: no (default): don't act like a daemon, see if there is something to build
+#. otherwise quit; yes: sleep, eat, and drink, but stay awake always looking for a job
+setDefault "DAEMON_MODE" "no"
+#ENV: DAEMON_SLEEP: default: 60s; the number of seconds or whatever is a good argument
+#. for the 'sleep' command
+setDefault "DAEMON_SLEEP" "60s"
 
 setLockFiles
 lockApplication
@@ -86,8 +94,21 @@ if verbose; then
 	sayHello
 fi
 
+ENTRY=
+
+cleanup() {
+    if [ -d "$workingDir" ]; then
+	Say  "\tRemoving directory $workingDir..."
+	rm -rf "$workingDir"
+    fi
+    if [ ! -z "$ENTRY" ]; then
+	buildQueue "$ENTRY" "$buildingForArchs" "gone"
+    fi
+}; trap cleanup EXIT
+
 initBuildQueue
 
+while true; do
 for DISTRO in $DISTROS_TO_BUILD; do
 	if ! isDistroSupported "$DISTRO"; then
 		continue
@@ -111,23 +132,24 @@ for DISTRO in $DISTROS_TO_BUILD; do
 
 		parsePackageEntry "$ENTRY"
 
-		buildQueue "$ENTRY" "$arch" "requestLock" || continue
+		buildQueue "$ENTRY" "$buildingForArchs" "requestLock" || continue
 
 		Say  "\tFetching source package $package v$version"
 
-		workingDir="`mktemp -d -p "$BUILD_DIR/" "${package}XXXXXX"`" || exit 1
+		workingDir="$(mktemp -d -p "$BUILD_DIR" "${package}XXXXXX")"
 
 		(cd "$workingDir"; fetchSource "$dscURI")
 
-		buildQueue "$ENTRY" "$arch" "fetched"
+		buildQueue "$ENTRY" "$buildingForArchs" "fetched"
 
-		dscName="`basename "$dscURI"`"
+		dscName="$(basename "$dscURI")"
 
-		(cd "$workingDir"; \
-		if ! output="$(checkSums "$dscName")"; then \
-			Say "$output"; \
-			rm -rf "$workingDir"; \
-		fi)
+		cd "$workingDir"
+    		    if ! output="$(checkSums "$dscName")"; then
+	    		    Say "$output"
+		    	    rm -rf "$workingDir"
+    		    fi
+		cd "$OLDPWD"
 
 		if [ ! -f "$workingDir/$dscName" ]; then
 			Say  "\tCouldn't find downloaded $dscName, fetch failed?"
@@ -135,13 +157,9 @@ for DISTRO in $DISTROS_TO_BUILD; do
 			continue
 		fi
 
-		if shallUnlock; then
-			Say  "\tRemoving directory $workingDir..."
-			rm -rf "$workingDir"
-			checkUnlock; exit 3 # make sure we quit
-		fi
+		checkUnlock
 
-		buildQueue "$ENTRY" "$arch" "building"
+		buildQueue "$ENTRY" "$buildingForArchs" "building"
 
 		BUILD_TYPE=binary-arch
 
@@ -155,18 +173,13 @@ for DISTRO in $DISTROS_TO_BUILD; do
 			BUILD_TYPE=binary-indep
 		fi
 
-		if shallUnlock; then
-			Say  "\tRemoving directory $workingDir..."
-			rm -rf "$workingDir"
-			buildQueue "$ENTRY" "$buildingForArchs" "retry"
-			checkUnlock; exit 3 # make sure we quit
-		fi
+		checkUnlock
 
 		Say "\tStarting build backend..."
 		#ENV: MAINTAINER: maintainer name used when building the package (must match the key used to sign)
 		buildPackage "$dscName" "$BUILD_TYPE" "$workingDir" "$CODENAME" "$MAINTAINER"
 
-		CHANGES="`echo "$workingDir"/*.changes`"
+		CHANGES="$(echo "$workingDir"/*.changes)"
 
 		#
 		# Make sure we got something
@@ -183,7 +196,7 @@ for DISTRO in $DISTROS_TO_BUILD; do
 
 		if [ "$SIGN" == "auto" ]; then
 			Say "\t\tAuto-signing (as requested) $CHANGES..."
-			if ! OUTPUT="`$SIGN_COMMAND "$CHANGES"`"; then
+			if ! OUTPUT="$($SIGN_COMMAND "$CHANGES")"; then
 				Say "$OUTPUT"
 				continue
 			fi
@@ -215,6 +228,8 @@ for DISTRO in $DISTROS_TO_BUILD; do
 
 		buildQueue "$ENTRY" "$buildingForArchs" "uploaded"
 
+		ENTRY=
+
 		Say "\t\tCleaning results directory ($workingDir):"
 
 		for F in "$workingDir"/*; do
@@ -223,8 +238,16 @@ for DISTRO in $DISTROS_TO_BUILD; do
 		done
 
 		rmdir "$workingDir"
-
 	done
+done
+# Stop after the first run if not in daemon mode
+if [ "$DAEMON_MODE" == "yes" ]; then
+    Say "\tThe daemon is sleeping for $DAEMON_SLEEP...\c"
+    sleep "$DAEMON_SLEEP"
+    Say "done"
+else
+    break
+fi
 done
 
 shutdownBuildQueue

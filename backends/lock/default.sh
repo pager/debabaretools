@@ -60,25 +60,12 @@ checkLock() {
 	fi
 }
 
-# check if .unlock is present and report
-shallUnlock() {
-
-	checkLock
-
-	if [ -f "$UNLOCK_FILE" ]; then
-		return 0
-	else
-		return 1
-	fi
-
-}
-
 # check if .unlock is present and abort (but remove .lock and .unlock)
 #  this should only be used when it is safe to abort (i.e. operations can be resumed later)
 checkUnlock() {
-
-	if shallUnlock; then
-		echo "$UNLOCK_FILE file is present, aborting operations!"
+	checkLock
+	if [ -f "$UNLOCK_FILE" ]; then
+		echo "$UNLOCK_FILE file is present, aborting operations NOW!"
 		rm -f "$UNLOCK_FILE" "$LOCK_FILE"
 		exit 2
 	fi

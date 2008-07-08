@@ -86,9 +86,7 @@ else
 fi
 
 processChanges() {
-	if shallUnlock; then
-		checkUnlock
-	fi
+	checkUnlock
 
 	local changes="${1:-}"
 
