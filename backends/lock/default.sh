@@ -31,12 +31,10 @@ setLockFiles() {
 # try to lock the application and exit if already locked
 lockApplication() {
 
-	if [ -f "$LOCK_FILE" ]; then
-		echo "$APP_NAME won't start because $LOCK_FILE is present"
-		exit 1
-	fi
-
-	touch "$LOCK_FILE"
+	ln -s $$ "$LOCK_FILE" &> /dev/null || {
+	    echo "$APP_NAME won't start because $LOCK_FILE is present" >&2
+	    exit 1
+	}
 
 	checkUnlock
 }
@@ -76,7 +74,7 @@ shallUnlock() {
 }
 
 # check if .unlock is present and abort (but remove .lock and .unlock)
-#  this should only be used when it is safe to abort (operations can be resumed later)
+#  this should only be used when it is safe to abort (i.e. operations can be resumed later)
 checkUnlock() {
 
 	if shallUnlock; then
