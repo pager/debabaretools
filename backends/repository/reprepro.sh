@@ -109,7 +109,9 @@ getArchsPackIsBuiltAInRepository() {
 	fi
 
 	local queryResult alreadyBuiltIn p ARCH queryArchsOnly queryPackagesOnly
-	queryResult="`reprepro --dbdir "$dbDir" -T deb listfilter "$codename" "Source (==$sourcePackage), Version (==$packageVersion)"`"
+	queryResult="$(reprepro --dbdir "$dbDir" -T deb listfilter "$codename" \
+		    "(Source (==$sourcePackage), Version (==$packageVersion)) |
+		     (!Source, Package (==$sourcePackage), Version (==$packageVersion))")"
 
 	queryArchsOnly="`echo $queryResult | sed "s/ /\n/g" | egrep ":$" | sort -u | cut -d: -f1 | cut '-d|' -f3`"
 	queryPackagesOnly="`echo $queryResult | sed "s/ /\n/g" | egrep -v ":$" | grep -v "$packageVersion"`"
