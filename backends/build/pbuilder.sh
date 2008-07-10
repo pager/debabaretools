@@ -54,7 +54,7 @@ buildPackage() {
 
 	if ! $GAINROOT pbuilder --build $pbuilderopts --buildresult "$workingDir" \
 		--basetgz "$basetgz" "$workingDir/$dscURI" \
-		--logfile "$logFile"
+		--logfile "$logFile" \
 		&> /dev/null; then
 			es=$?
 			Say "\t\tBuild failed, cat "$logFile" for more information"
@@ -71,9 +71,18 @@ updateTGZ() {
 		Say "err, what basetgz do you want me to update?"
 		return 1
 	fi
+
+	if [ "$UPDATE_ENVIRONMENT_AGE" -gt 0 ]; then
+	    local mtime="$(stat --printf='%Y' "$file")" ctime="$(date +%s)" dtime
+	    dtime=$(($ctime - $mtime))
+	    if [ $dtime -lt "$UPDATE_ENVIRONMENT_AGE" ]; then
+		return
+	    fi
+	fi
+
 	Say "\t\tExecuting $GAINROOT pbuilder --update --basetgz $file"
 
-	if ! output="`$GAINROOT pbuilder --update --basetgz "$file" 2>&1`"; then
+	if ! output="$($GAINROOT pbuilder --update --basetgz "$file" 2>&1)"; then
 		es=$?
 		Say "$output"
 		return $es

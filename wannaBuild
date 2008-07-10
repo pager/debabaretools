@@ -73,6 +73,9 @@ setDefault "BUILD_DATA_CACHE" "$BUILD_DIR/cache"
 setDefault "KEYRING" "secring.gpg"
 #ENV: UPDATE_ENVIRONMENT: 1(default): automagically update the build environment before building, 0: do nothing
 setDefault "UPDATE_ENVIRONMENT" "1"
+#ENV: UPDATE_ENVIRONMENT_AGE: default: 3600; only update the build environment
+#. after x seconds have passed since the last update (detection of this is implementation-dependent)
+setDefault "UPDATE_ENVIRONMENT_AGE" "3600"
 #ENV: GAINROOT: command (sudo by default) to gain root access for some not-build-time operations
 #.(e.g. chroot, pbuilder)
 setDefault "GAINROOT" "sudo"
