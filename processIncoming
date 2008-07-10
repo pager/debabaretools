@@ -80,7 +80,7 @@ fi
 
 CURRENT="$(find "$UPLOADQUEUE" -maxdepth 1 -type f)"
 if [ ! -z "$CURRENT" ]; then
-	CURRENT_CHANGES="$(echo "$CURRENT" | egrep ".*\.changes$")"
+	CURRENT_CHANGES="$(echo "$CURRENT" | egrep ".*\.changes$")" || true
 else
 	CURRENT_CHANGES=
 fi
@@ -133,7 +133,7 @@ processChanges() {
 			doNotOverwrite "$NEW/$filename"
 			Say "mv'ing \"$UPLOADQUEUE/$filename\" to \"$NEW/\""
 			mv "$UPLOADQUEUE/$filename" "$NEW/"
-			return
+			continue
 		fi
 
 		doNotOverwrite "$ACCEPTED/$filename"
@@ -156,7 +156,9 @@ if [ "$REJECTED_POLICY" == "kill" ]; then
 	fi
 elif [ "$REJECTED_POLICY" == "move" ]; then
 	# Move them all!
-	if [ ! -z "$CURRENT" ] && [ -d "$REJECTED" ]; then
+	if [ ! -z "$CURRENT" ]; then
+		rejected_dir="$REJECTED/$(date -u '+%F_%H-%M')"
+		mkdir -p "$rejected_dir"
 		for f in $CURRENT; do
 
 			if [ "$REJECTED_KEEP_CHANGES" = "0" ] && egrep "\.changes$" <<< "$f" > /dev/null; then
@@ -165,10 +167,11 @@ elif [ "$REJECTED_POLICY" == "move" ]; then
 				continue
 			fi
 
-			Say "mv'ing \"$f\" to \"$REJECTED/\""
-			doNotOverwrite "$REJECTED/$f"
-			mv "$f" "$REJECTED/"
+			Say "mv'ing \"$f\" to \"$rejected_dir/\""
+			doNotOverwrite "$rejected_dir/$(basename $f)"
+			mv "$f" "$rejected_dir/"
 		done
+		rmdir --ignore-fail-on-non-empty "$rejected_dir"
 	fi
 else
 	Say "Unknown REJECTED_POLICY: $REJECTED_POLICY, aborting"
