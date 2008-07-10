@@ -54,7 +54,7 @@ unlockApplication() {
 # make sure the lock file is present, otherwise exit
 checkLock() {
 
-	if [ ! -f "$LOCK_FILE" ]; then
+	if [ ! -L "$LOCK_FILE" ]; then
 		echo "$APP_NAME's lock is gone! aborting!"
 		exit 3
 	fi
