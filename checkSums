@@ -108,11 +108,18 @@ fi
 # $CONTENTS stores the file information listed in the .changes/.dsc file
 CONTENTS=
 
-if [ "$FORMAT" = "changes" ]; then
-    CONTENTS="$(egrep "[0-9a-f]{32} [0-9]+ [a-z0-9]+ [a-z]+ .*" "$1" | sed "s/ /|/g;")"
-else
-    CONTENTS="$(egrep "[0-9a-f]{32} [0-9]+ .*" "$1" | sed "s/ /|/g;")"
-fi
+case "$FORMAT" in
+    changes)
+	CONTENTS="$(egrep "^ [0-9a-f]{32} [0-9]+ [a-z0-9]+ [a-z]+ .*" "$1" | sed "s/ /|/g;")"
+    ;;
+    dsc)
+	CONTENTS="$(egrep "^ [0-9a-f]{32} [0-9]+ .*" "$1" | sed "s/ /|/g;")"
+    ;;
+    *)
+	echo "Unknown file format: $FORMAT" >&2
+	exit 2
+    ;;
+esac
 
 # nothing? this can't be a valid file
 if [ -z "$CONTENTS" ]; then
@@ -129,12 +136,15 @@ for ENTRY in $CONTENTS; do
     if [ -z "$ENTRY" ]; then
         continue
     fi
-    
-    if [ "$FORMAT" = "changes" ]; then
-        FILE="$(cut '-d|' -f6 <<< "$ENTRY")"
-    else
-        FILE="$(cut '-d|' -f4 <<< "$ENTRY")"
-    fi
+
+    case "$FORMAT" in
+	changes)
+	    FILE="$(cut '-d|' -f6 <<< "$ENTRY")"
+	;;
+	dsc)
+	    FILE="$(cut '-d|' -f4 <<< "$ENTRY")"
+	;;
+    esac
 
     FULL_PATH2FILE="$(readlink -f "$FILE")"
 
