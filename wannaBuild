@@ -99,7 +99,7 @@ ENTRY=
 cleanup() {
     if [ -d "$workingDir" ]; then
 	Say  "\tRemoving directory $workingDir..."
-	rm -rf "$workingDir"
+	rmdir --ignore-fail-on-non-empty "$workingDir"
     fi
     if [ ! -z "$ENTRY" ]; then
 	buildQueue "$ENTRY" "$buildingForArchs" "gone"
@@ -154,6 +154,7 @@ for DISTRO in $DISTROS_TO_BUILD; do
 		if [ ! -f "$workingDir/$dscName" ]; then
 			Say  "\tCouldn't find downloaded $dscName, fetch failed?"
 			buildQueue "$ENTRY" "$arch" "fetch-failed"
+			ENTRY=
 			continue
 		fi
 
@@ -187,6 +188,7 @@ for DISTRO in $DISTROS_TO_BUILD; do
 		if [ ! -f $CHANGES ]; then
 			Say "\t\tCould not find $CHANGES, build failed"
 			buildQueue "$ENTRY" "$buildingForArchs" "failed"
+			ENTRY=
 			continue
 		fi
 
@@ -198,11 +200,13 @@ for DISTRO in $DISTROS_TO_BUILD; do
 			Say "\t\tAuto-signing (as requested) $CHANGES..."
 			if ! OUTPUT="$($SIGN_COMMAND "$CHANGES")"; then
 				Say "$OUTPUT"
+				ENTRY=
 				continue
 			fi
 		elif [ "$SIGN" == "yes" ]; then
 			Say "\t\tVerifying signature of $CHANGES..."
 			if ! checkSign "$CHANGES" "$KEYRING"; then
+				ENTRY=
 				continue
 			fi
 		fi
@@ -215,6 +219,7 @@ for DISTRO in $DISTROS_TO_BUILD; do
 		if [ ! -f "$BUILD_LOG" ]; then
 			Say "\t\tCould not find $BUILD_LOG, build failed"
 			buildQueue "$ENTRY" "$buildingForArchs" "failed"
+			ENTRY=
 			continue
 		fi
 
