@@ -86,6 +86,14 @@ setDefault "DAEMON_MODE" "no"
 #ENV: DAEMON_SLEEP: default: 60s; the number of seconds or whatever is a good argument
 #. for the 'sleep' command
 setDefault "DAEMON_SLEEP" "60s"
+setDefault "MAIL_BUILD_LOGS" "yes"
+setDefault "MAIL_BUILD_LOGS_TO" "$USER"
+setDefault "MAIL_BUILD_LOGS_FROM" "$USER"
+setDefault "MAIL_BUILD_BODY_FILE" "/etc/DeBaBaReTools/$APP_NAME.msg"
+
+if [ "$MAIL_BUILD_LOGS" == "yes" ]; then
+    probeFile "mail"
+fi
 
 setLockFiles
 lockApplication
@@ -199,6 +207,36 @@ for DISTRO in $DISTROS_TO_BUILD; do
 
 		checkUnlock
 
+		BUILD_LOG="$(echo "$workingDir"/*.build)"
+
+		#
+		# Make sure we got something
+		#
+		if [ ! -f "$BUILD_LOG" ]; then
+			Say "\t\tCould not find $BUILD_LOG, build failed"
+			buildQueue "$ENTRY" "$buildingForArchs" "failed"
+			ENTRY=
+			continue
+		fi
+
+		checkUnlock
+
+		if [ "$MAIL_BUILD_LOG" == "yes" ]; then
+		    Say "\t\tEmailing the build data (as requested) to $MAIL_BUILD_LOGS_TO...\c"
+		    if ! OUTPUT="$(sendMail \
+				    "-t$MAIL_BUILD_LOGS_TO" \
+				    "-f$MAIL_BUILD_LOGS_FROM" \
+				    "-swannaBuild data for $package $version" \
+				    "-a$BUILD_LOG" \
+				    "-a$CHANGES" \
+				    < "$MAIL_BUILD_BODY_FILE")"; then
+			verbose && echo -e "\n\t\t\c"
+			printf "Failed to email build log of %s\n" "$package" >&2
+		    else
+			Say "done"
+		    fi
+		fi
+
 		if [ "$SIGN" == "auto" ]; then
 			Say "\t\tAuto-signing (as requested) $CHANGES..."
 			if ! OUTPUT="$($SIGN_COMMAND "$CHANGES")"; then
@@ -212,18 +250,6 @@ for DISTRO in $DISTROS_TO_BUILD; do
 				ENTRY=
 				continue
 			fi
-		fi
-
-		BUILD_LOG="$(echo "$workingDir"/*.build)"
-
-		#
-		# Make sure we got something
-		#
-		if [ ! -f "$BUILD_LOG" ]; then
-			Say "\t\tCould not find $BUILD_LOG, build failed"
-			buildQueue "$ENTRY" "$buildingForArchs" "failed"
-			ENTRY=
-			continue
 		fi
 
 		checkUnlock

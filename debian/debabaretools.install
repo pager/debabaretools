@@ -6,4 +6,5 @@ wannaUpload usr/bin/
 checkSums usr/bin/
 processIncoming usr/bin/
 buildQueue usr/bin/
-default/common.conf etc/DeBaBaReTools/
+default/*.conf etc/DeBaBaReTools/
+default/*.msg etc/DeBaBaReTools/
