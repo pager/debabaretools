@@ -3,9 +3,9 @@ Section: admin
 Priority: extra
 Maintainer: Raphael Geissert <atomo64@gmail.com>
 Build-Depends: debhelper (>= 6)
-Standards-Version: 3.7.3
-Vcs-Svn: https://neo.yahostme.com/svn/DeBaBaReTools/trunk/
-Vcs-Browser: https://neo.yahostme.com/svn/DeBaBaReTools/trunk/
+Standards-Version: 3.8.0
+Vcs-Git: git://git.debian.org/git/users/atomo64-guest/debabaretools.git
+Vcs-Browser: http://git.debian.org/?p=users/atomo64-guest/debabaretools.git;a=summary
 
 Package: debabaretools
 Architecture: all
