@@ -313,7 +313,9 @@ doesBinFromXSourceExist() {
 	fi
 
 	local queryResult
-	queryResult="$(reprepro --dbdir "$dbDir" -T deb listfilter "$codename" "Package (==$binaryPackage), Source (==$sourcePackage)")"
+	queryResult="$(reprepro --dbdir "$dbDir" -T deb listfilter "$codename" \
+		    "(Package (==$binaryPackage), Source (==$sourcePackage)) |
+		    (!Source, Package (==$binaryPackage))")"
 
 	[ ! -z "$queryResult" ]
 	return
