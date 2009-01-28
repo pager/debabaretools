@@ -19,7 +19,7 @@
 ####################
 
 sendMail() {
-    local from to body subject attachments
+    local from to body cc bcc subject attachments
 
     local i
     for i in $(seq 1 $#); do
@@ -33,6 +33,12 @@ sendMail() {
 	    -t*)
 		to+="${1#-t},"
 	    ;;
+	    -c*)
+		cc+="${1#-c},"
+	    ;;
+	    -bc*)
+		bcc+="${1#-bc},"
+	    ;;
 	    -a*)
 		attachments+="${1#-a}|"
 	    ;;
@@ -45,8 +51,11 @@ sendMail() {
 
     [ ${#attachments} -eq 0 ] || \
     attachments=${attachments:0:${#attachments}-1}
-    [ ${#to} -eq 0 ] || \
-    to=${to:0:${#to}-1}
+    local f
+    for f in to cc bcc; do
+	[ ${#$f} -eq 0 ] || \
+	$f=${$f:0:${#$f}-1}
+    done
 
     if [ -z "$body" ]; then
 	body="$(cat)"
@@ -59,6 +68,8 @@ sendMail() {
     printf '' > $mailfile
     printf "From: %s\n" "$from" >> $mailfile
     printf "To: %s\n" "$to" >> $mailfile
+    [ "$cc" ] &&  printf "Cc: %s\n" "$cc" >> $mailfile
+    [ "$bcc" ] && printf "Bcc: %s\n" "$bcc" >> $mailfile
     printf "Subject: %s\n" "$subject" >> $mailfile
     printf "Message-ID: <%d-%d-%d@%s>\n" \
 		"$RANDOM" \
