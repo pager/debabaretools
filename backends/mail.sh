@@ -51,11 +51,12 @@ sendMail() {
 
     [ ${#attachments} -eq 0 ] || \
     attachments=${attachments:0:${#attachments}-1}
-    local f
-    for f in to cc bcc; do
-	[ ${#$f} -eq 0 ] || \
-	$f=${$f:0:${#$f}-1}
-    done
+    [ ${#to} -eq 0 ] || \
+    to=${to:0:${#to}-1}
+    [ ${#cc} -eq 0 ] || \
+    cc=${cc:0:${#cc}-1}
+    [ ${#bcc} -eq 0 ] || \
+    bcc=${bcc:0:${#bcc}-1}
 
     if [ -z "$body" ]; then
 	body="$(cat)"
