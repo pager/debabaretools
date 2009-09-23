@@ -40,7 +40,7 @@ fetchSource() {
 	done
 
 	if [ -f "$uri" ]; then
-		uri="file:$uri"
+		uri="file://$uri"
 	fi
 
 	if [ ! -z "$paths" ]; then
