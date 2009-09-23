@@ -54,9 +54,13 @@ probeFile "verbosity" "setDefault" "upload"
 setDefault "VERBOSE" "0"
 setDefault "CHECKSUMS" "`which checkSums`"
 
+cd "$(dirname $1)"
+
 if ! OUTPUT="`NOT_HUMAN=1 $CHECKSUMS "$1" VERBOSE`"; then
 	Say "$OUTPUT"
 	exit 1
 fi
+
+cd $OLDPWD
 
 uploadSource "$1"
