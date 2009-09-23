@@ -53,8 +53,8 @@ buildPackage() {
 	Say "\t\tStarting build process"
 
 	if ! $GAINROOT pbuilder --build $pbuilderopts --buildresult "$workingDir" \
-		--basetgz "$basetgz" "$workingDir/$dscURI" \
 		--logfile "$logFile" \
+		--basetgz "$basetgz" "$workingDir/$dscURI" \
 		&> /dev/null; then
 			es=$?
 			Say "\t\tBuild failed, cat "$logFile" for more information"
