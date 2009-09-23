@@ -39,7 +39,7 @@ getChangesEntry() {
 
 	var="$(echo "$entry" | sed "s/\-/_/g" | awk '{ print toupper($0) }')"
 
-	eval "$var="$(egrep -m1 "^$entry:" "$file" | cut '-d:' -f2- | sed "s/^ //")""
+	eval "$var=\""$(egrep -m1 "^$entry:" "$file" | cut '-d:' -f2- | sed "s/^ //")"\""
 }
 
 #USAGE: getDscEntry(dscFile, entryName): getDscEntry "foo_0.1-1.dsc" "Version"
@@ -63,7 +63,7 @@ getDscEntry() {
 
 	var="$(echo "$entry" | sed "s/\-/_/g" | awk '{ print toupper($0) }')"
 
-	eval "$var="$(egrep -m1 "^$entry:" "$file" | cut '-d:' -f2- | sed "s/^ //")""
+	eval "$var=\""$(egrep -m1 "^$entry:" "$file" | cut '-d:' -f2- | sed "s/^ //")"\""
 }
 
 #USAGE: getChangesFiles(dscFile): getChangesFiles "foo_0.1-1.dsc"
