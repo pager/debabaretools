@@ -18,6 +18,11 @@
 #    along with DeBaBaReTools.  If not, see <http://www.gnu.org/licenses/>.
 ####################
 
+####################
+# WARNING: This file is mostly place for experiments to familiarize myself with 
+#          DeBaBaReTools, pbuilder and other Debian ecosystem moving parts.
+####################
+
 setDefault "PBUILDER_CACHE" "/var/cache/pbuilder"
 
 #buildPackage "$dscURI" "$BUILD_TYPE" "$workingDir" "$distro" ["$maintainer"]
@@ -32,17 +37,17 @@ buildPackage() {
 		updateBASE "$basepath"
 	fi
 
-	case $buildType in 
-		binary-arch)
-			pbuilderopts=' --binary-arch'
-		;;
-		binary-indep)
-			pbuilderopts='--debbuildopts -A'
-		;;
-		binary-all)
+# case $buildType in 
+#		binary-arch)
+#			pbuilderopts=' --binary-arch'
+#		;;
+#		binary-indep)
+#			pbuilderopts='--debbuildopts -A'
+#		;;
+#		binary-all)
 			pbuilderopts='--debbuildopts -b'
-		;;
-	esac
+#		;;
+#	esac
 
 	if [ ! -z "$maintainer" ]; then
 		pbuilderopts+=" --debbuildopts -m'$maintainer'"
