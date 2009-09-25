@@ -24,7 +24,7 @@ setDefault "PBUILDER_CACHE" "/var/cache/pbuilder"
 buildPackage() {
 
 	local dscURI="${1:-}" buildType="${2:-}" workingDir="${3:-}" distro="${4:-}" maintainer="${5:-}"
-	local pbuilderopts es logFile basepath
+	local pbuilderopts es logFile basepath cowbuilder
 
 	basepath="$(cowbuilderFindBaseDir "$distro")" || return
 
@@ -52,7 +52,13 @@ buildPackage() {
 
 	Say "\t\tStarting build process"
 
-	if ! $GAINROOT cowbuilder --build $pbuilderopts --buildresult "$workingDir" \
+	if  [ x"${DEB_HOST_ARCH}" == x"i386" ]; then
+    cowbuilder="linux32 cowbuilder"
+  else
+    cowbuilder="cowbuilder"
+  fi
+
+	if ! $GAINROOT $cowbuilder --build $pbuilderopts --buildresult "$workingDir" \
 		--logfile "$logFile" \
 		--basepath "$basepath" "$workingDir/$dscURI" \
 		&> /dev/null; then
@@ -97,9 +103,15 @@ cowbuilderFindBaseDir() {
 			file="${1:-}"
 		elif [ -d "$(eval "echo \$COWBUILDER_${1:-}")" ]; then
 			file="$(eval "echo \$COWBUILDER_$f")"
+    elif [ x"${DEB_HOST_ARCH}" == x"i386" ] && [ -d "${PBUILDER_CACHE}/base-${1:-}-i386.cow" ]; then
+      file="${PBUILDER_CACHE}/base-${1:-}-i386.cow"
 		elif [ -d "${PBUILDER_CACHE}/base-${1:-}.cow" ]; then
 			file="${PBUILDER_CACHE}/base-${1:-}.cow"
 		fi
+	fi
+
+	if [ -z "$file" ] && [ x"${DEB_HOST_ARCH}" == x"i386" ] && [ -d "${PBUILDER_CACHE}/base-${DISTRO}-i386.cow" ]; then
+		file="${PBUILDER_CACHE}/base-${DISTRO}-i386.cow"
 	fi
 
 	if [ -z "$file" ] && [ -d "${PBUILDER_CACHE}/base-${DISTRO}.cow" ]; then
