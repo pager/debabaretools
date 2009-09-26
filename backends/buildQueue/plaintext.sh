@@ -57,7 +57,7 @@ setToBuild() {
 		if [ -z "$i" ]; then
 			continue
 		fi
-		sed --in-place "s/$ESCAPED|$i//;" "$needsBuild_dataDir/needsBuild.$distro"
+		sed -r --in-place "s/$ESCAPED|$i//;" "$needsBuild_dataDir/needsBuild.$distro"
 	done
 }
 
@@ -116,7 +116,7 @@ markAsBuilt() {
 	escapeForRegex "${package}_${version}|$arch|"
 
 	# remove any possible existing entry:
-	sed -i "s/$ESCAPED.*//" "$needsBuild_dataDir/needsBuild.$distro"
+	sed -ir "s/$ESCAPED.*//" "$needsBuild_dataDir/needsBuild.$distro"
 
 	echo "${package}_${version}|$arch|built" >> "$needsBuild_dataDir/needsBuild.$distro"
 }
